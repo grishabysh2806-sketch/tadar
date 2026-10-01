@@ -8,6 +8,8 @@ import { navigate } from '../lib/router';
 import { PageHead } from '../layout/Layout';
 import { cx } from '../lib/util';
 import { sfx } from '../audio/engine';
+import { serverOn } from '../net/client';
+import { AccountSection } from './Account';
 
 export default function Settings() {
   const st = useStore((s) => s.settings);
@@ -137,26 +139,30 @@ export default function Settings() {
         </div>
       </section>
 
-      <section className="set-group card">
-        <h3>Сохранение прогресса</h3>
-        {cloud === 'on' && (
-          <p className="set-cloud on">
-            <Icon name="check" size={18} /> Прогресс сохраняется в вашем аккаунте Claude — продолжайте на любом устройстве.
-          </p>
-        )}
-        {cloud === 'connecting' && <p className="set-cloud">Подключаем хранилище…</p>}
-        {cloud === 'available' && (
-          <div className="col" style={{ gap: 10 }}>
-            <p className="set-cloud">Сейчас прогресс хранится только в этом браузере. Его можно сохранять в вашем аккаунте Claude.</p>
-            <button className="btn sm" onClick={() => connectCloud(true)}>
-              Сохранять в аккаунте
-            </button>
-          </div>
-        )}
-        {(cloud === 'off' || cloud === 'local-only') && (
-          <p className="set-cloud">Прогресс хранится на этом устройстве, в браузере. Не очищайте данные сайта, чтобы его не потерять.</p>
-        )}
-      </section>
+      {serverOn ? (
+        <AccountSection />
+      ) : (
+        <section className="set-group card">
+          <h3>Сохранение прогресса</h3>
+          {cloud === 'on' && (
+            <p className="set-cloud on">
+              <Icon name="check" size={18} /> Прогресс сохраняется в вашем аккаунте Claude — продолжайте на любом устройстве.
+            </p>
+          )}
+          {cloud === 'connecting' && <p className="set-cloud">Подключаем хранилище…</p>}
+          {cloud === 'available' && (
+            <div className="col" style={{ gap: 10 }}>
+              <p className="set-cloud">Сейчас прогресс хранится только в этом браузере. Его можно сохранять в вашем аккаунте Claude.</p>
+              <button className="btn sm" onClick={() => connectCloud(true)}>
+                Сохранять в аккаунте
+              </button>
+            </div>
+          )}
+          {(cloud === 'off' || cloud === 'local-only') && (
+            <p className="set-cloud">Прогресс хранится на этом устройстве, в браузере. Не очищайте данные сайта, чтобы его не потерять.</p>
+          )}
+        </section>
+      )}
 
       <section className="set-group card">
         <h3>Данные</h3>
@@ -184,7 +190,7 @@ export default function Settings() {
       <Modal open={reset} onClose={() => setReset(false)}>
         <h2>Сбросить прогресс?</h2>
         <p className="muted" style={{ marginBottom: 16 }}>
-          Опыт, серия, уроки и достижения обнулятся. Записи «Голосов старших» останутся.
+          Опыт, серия, уроки и достижения обнулятся{serverOn ? ' — и на этом устройстве, и в аккаунте' : ''}. Записи «Голосов старших» останутся.
         </p>
         <div className="row">
           <button className="btn ghost grow" onClick={() => setReset(false)}>

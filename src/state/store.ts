@@ -72,7 +72,10 @@ export interface State {
   cls: {
     role?: 'teacher' | 'student';
     myClass?: ClassRoom;
-    joined?: { code: string; name: string; teacher: string; joinedAt: number; assignments: Assignment[] };
+    /** Класс ученика; id — у класса на сервере, без id — демо на устройстве. */
+    joined?: { id?: string; code: string; name: string; teacher: string; joinedAt: number; assignments: Assignment[] };
+    /** Сколько классов учитель ведёт на сервере. */
+    teaching?: number;
   };
   travel: { visited: string[] };
   stats: { lessons: number; perfect: number; bestCombo: number; epicPlays: number; records: number; practice: number; ms: number };

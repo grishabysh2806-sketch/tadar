@@ -479,7 +479,7 @@ export const ACHIEVEMENTS: AchDef[] = [
   { id: 'voice1', icon: '🎙️', title: 'Голос рода', desc: 'Сделайте первую запись в «Голосах старших»', check: (s) => s.stats.records >= 1 },
   { id: 'voice10', icon: '📻', title: 'Хранитель голосов', desc: 'Сделайте 10 записей', check: (s) => s.stats.records >= 10 },
   { id: 'travel5', icon: '🧭', title: 'Путешественник', desc: 'Откройте 5 мест на карте Шории', check: (s) => s.travel.visited.length >= 5 },
-  { id: 'class', icon: '🏫', title: 'Одноклассник', desc: 'Создайте класс или вступите в него', check: (s) => !!s.cls.myClass || !!s.cls.joined },
+  { id: 'class', icon: '🏫', title: 'Одноклассник', desc: 'Создайте класс или вступите в него', check: (s) => !!s.cls.myClass || !!s.cls.joined || !!s.cls.teaching },
   { id: 'xp1000', icon: '⭐', title: 'Тысяча', desc: 'Наберите 1000 опыта', check: (s) => s.xp >= 1000 },
   { id: 'alyp', icon: '🛡️', title: 'Алып', desc: 'Пройдите весь курс', check: (s) => LESSONS.every((l) => s.lessons[l.lesson.id]?.done) },
   { id: 'early', icon: '🌅', title: 'Ранняя пташка', desc: 'Пройдите урок до 8 утра' },
@@ -548,7 +548,29 @@ export function leagueBoard(s: State, week = weekStart(), tier = s.league.tier, 
   return rows.sort((a, b) => b.xp - a.xp || (a.me ? -1 : 1));
 }
 
-/** Подводит итоги прошлой недели лиги (повышение/понижение). */
+/**
+ * Зоны группы: наверх уходят пятеро лучших, но не больше трети группы (минимум один);
+ * вниз — пятеро последних, если в группе хотя бы 15 человек.
+ */
+export function leagueZones(size: number, tier: number) {
+  const up = tier >= LEAGUES.length - 1 ? 0 : Math.max(1, Math.min(5, Math.floor(size / 3)));
+  const down = tier > 0 && size >= 15 ? 5 : 0;
+  return { up, down };
+}
+
+/** Итог недели: повышение или понижение по месту в группе. */
+export function applyLeagueResult(d: State, r: { rank: number; size: number; xp: number } | null) {
+  if (!r || r.rank <= 0 || r.xp <= 0) return;
+  const from = d.league.tier;
+  const z = leagueZones(r.size, from);
+  let to = from;
+  if (r.rank <= z.up) to = Math.min(LEAGUES.length - 1, from + 1);
+  else if (z.down && r.rank > r.size - z.down) to = Math.max(0, from - 1);
+  d.league.tier = to;
+  d.league.result = { week: d.league.week, rank: r.rank, from, to, seen: false };
+}
+
+/** Подводит итоги прошлой недели лиги на устройстве (группа из учебных соперников). */
 export function settleLeague() {
   const s = getState();
   const now = weekStart();
@@ -557,13 +579,7 @@ export function settleLeague() {
     if (d.league.week && d.league.week < now) {
       const board = leagueBoard(d, d.league.week, d.league.tier, 1);
       const rank = board.findIndex((x) => x.me) + 1;
-      const myXp = board[rank - 1].xp;
-      const from = d.league.tier;
-      let to = from;
-      if (myXp > 0 && rank <= 5) to = Math.min(LEAGUES.length - 1, from + 1);
-      else if (rank >= 16 && from > 0) to = from - 1;
-      d.league.tier = to;
-      if (myXp > 0) d.league.result = { week: d.league.week, rank, from, to, seen: false };
+      applyLeagueResult(d, { rank, size: board.length, xp: board[rank - 1].xp });
     }
     d.league.week = now;
   });

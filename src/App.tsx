@@ -3,6 +3,7 @@ import { useRoute, navigate } from './lib/router';
 import { useStore, setState } from './state/store';
 import { settleLeague, ensureQuests } from './state/game';
 import { Layout } from './layout/Layout';
+import { serverOn } from './net/client';
 import { Toasts } from './ui/kit';
 import Learn from './pages/Learn';
 import LessonPage from './pages/Lesson';
@@ -60,7 +61,8 @@ export default function App() {
   const onboarded = useStore((s) => s.settings.onboarded);
 
   useEffect(() => {
-    settleLeague();
+    // с сервером итоги недели подводятся по настоящей группе — после входа
+    if (!serverOn) settleLeague();
     setState((d) => ensureQuests(d));
   }, []);
 

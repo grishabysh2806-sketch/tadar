@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { setState, useStore, type Mode } from '../state/store';
-import { Mascot, MASCOT_NAME } from '../ui/kit';
+import { Mascot, MASCOT_NAME, Modal } from '../ui/kit';
+import { serverOn } from '../net/client';
+import { EmailFlow } from './Account';
 import { Icon } from '../ui/Icon';
 import { navigate } from '../lib/router';
 import { cx } from '../lib/util';
@@ -36,6 +38,7 @@ export default function Onboarding() {
   const [motive, setMotive] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>(st.mode);
   const [goal, setGoal] = useState(20);
+  const [login, setLogin] = useState(false);
   const motiveDef = MOTIVES.find((m) => m.id === motive);
 
   const go = (n: number) => {
@@ -44,16 +47,24 @@ export default function Onboarding() {
   };
 
   const finish = (target: string) => {
+    // пришли по QR-коду класса — после знакомства сразу в класс
+    let joining = false;
+    try {
+      joining = !!sessionStorage.getItem('tadar.join');
+    } catch {
+      /* noop */
+    }
     setState((d) => {
       d.profile.name = name.trim();
       d.profile.motivation = motive ?? undefined;
-      d.settings.mode = mode;
+      d.settings.mode = joining ? 'class' : mode;
       d.settings.goal = goal;
       d.settings.onboarded = true;
-      if (mode === 'class' && motiveDef?.role) d.cls.role = motiveDef.role;
+      if (joining) d.cls.role = 'student';
+      else if (mode === 'class' && motiveDef?.role) d.cls.role = motiveDef.role;
     });
     sfx('unlock');
-    navigate(target, true);
+    navigate(joining ? 'class' : target, true);
   };
 
   if (step === 0) {
@@ -72,8 +83,20 @@ export default function Onboarding() {
             <button className="btn outline-white block" onClick={() => navigate('about')}>
               О проекте «Тадар»
             </button>
+            {serverOn && (
+              <button className="btn text splash-login" onClick={() => setLogin(true)}>
+                Уже занимались? Войти по почте
+              </button>
+            )}
           </div>
         </div>
+        <Modal open={login} onClose={() => setLogin(false)}>
+          <h2>Вход по почте</h2>
+          <p className="muted" style={{ marginBottom: 14 }}>
+            Если вы привязали почту на другом устройстве, введите её — пришлём код, и прогресс вернётся сюда.
+          </p>
+          <EmailFlow mode="login" onDone={() => setLogin(false)} onCancel={() => setLogin(false)} />
+        </Modal>
       </div>
     );
   }

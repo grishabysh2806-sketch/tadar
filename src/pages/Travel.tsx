@@ -8,7 +8,7 @@ import { Mascot, Modal, ShorText, SpeakButton, toast } from '../ui/kit';
 import { Mountains } from '../ui/Ornament';
 import { navigate } from '../lib/router';
 import { cx } from '../lib/util';
-import { QR } from './ClassMode';
+import { QR } from './ClassParts';
 import { sfx } from '../audio/engine';
 
 const BOX = { lat0: 52.25, lat1: 53.95, lon0: 86.9, lon1: 88.9 };

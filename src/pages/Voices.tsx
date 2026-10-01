@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { UNITS } from '../data/course';
 import { ITEMS, ruShow } from '../data/vocab';
 import type { Item } from '../data/types';
-import { listRecordings, saveRecording, deleteRecording, onRecordingsChange, type Recording } from '../audio/voice';
+import { listRecordings, saveRecording, deleteRecording, onRecordingsChange, communityTexts, type Recording } from '../audio/voice';
+import { recorderMime, VOICE_BITRATE } from '../audio/compress';
 import { questEvent, runAchievementCheck, ACHIEVEMENTS } from '../state/game';
 import { useStore } from '../state/store';
 import { Icon } from '../ui/Icon';
@@ -12,36 +13,65 @@ import { normalize } from '../lib/text';
 import { sfx } from '../audio/engine';
 import { PageHead } from '../layout/Layout';
 import { saveFile } from '../lib/platform';
+import { net, serverOn, errorText } from '../net/client';
+import {
+  approveRecording,
+  loadCommunityVoices,
+  loadVoiceStats,
+  pendingRecordings,
+  recordingUrl,
+  refreshMyStatuses,
+  rejectRecording,
+  shareRecording,
+  unshareRecording,
+  voicesNet,
+  type RemoteRecording,
+} from '../net/voices';
 
 const PROJECT_GOAL = 500;
 const RELATIONS = ['бабушка', 'дедушка', 'мама', 'папа', 'родственник', 'земляк', 'я сам(а)'];
-
-function pickMime() {
-  const cands = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
-  for (const c of cands) if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported?.(c)) return c;
-  return '';
-}
+const noop = () => undefined;
 
 export default function Voices() {
   const [recs, setRecs] = useState<Recording[]>([]);
+  const [community, setCommunity] = useState(() => communityTexts());
   const [filter, setFilter] = useState<'todo' | 'all'>('todo');
   const [unit, setUnit] = useState('u1');
   const [target, setTarget] = useState<Item | null>(null);
   const items = useStore((s) => s.items);
+  const n = net.use();
+  const vs = voicesNet.use();
+  const online = n.status === 'online';
 
-  const load = () => listRecordings().then(setRecs);
   useEffect(() => {
+    const load = () => {
+      listRecordings().then(setRecs);
+      setCommunity(communityTexts());
+    };
     load();
     return onRecordingsChange(load);
   }, []);
 
-  const recorded = useMemo(() => new Set(recs.map((r) => normalize(r.text))), [recs]);
+  useEffect(() => {
+    if (!online) return;
+    loadCommunityVoices(false, 60000).catch(noop);
+    listRecordings()
+      .then((all) => refreshMyStatuses(all))
+      .catch(noop);
+  }, [online]);
+  useEffect(() => {
+    if (online && Date.now() - vs.at > 60000) loadVoiceStats().catch(noop);
+  }, [online, vs.at]);
+
+  const mine = useMemo(() => new Set(recs.map((r) => normalize(r.text))), [recs]);
   const u = UNITS.find((x) => x.id === unit)!;
   const words = u.lessons
     .flatMap((l) => l.items)
     .map((id) => ITEMS[id])
-    .filter((it) => filter === 'all' || !recorded.has(normalize(it.shor)));
+    .filter((it) => filter === 'all' || !(mine.has(normalize(it.shor)) || community.has(normalize(it.shor))));
   const learnedFirst = [...words].sort((a, b) => Number(!!items[b.id]?.c) - Number(!!items[a.id]?.c));
+  const stats = vs.stats;
+  const collected = serverOn && stats ? stats.total : recs.length;
 
   return (
     <div className="page voices">
@@ -51,22 +81,33 @@ export default function Voices() {
         <div className="grow">
           <h3>Запишите, как звучит шорский в вашей семье</h3>
           <p>
-            Попросите бабушку или дедушку произнести слово — и запишите. Записи заменят синтез речи в уроках, а позже станут основой открытого аудиословаря и будущего ИИ-распознавания
-            шорской речи.
+            Попросите бабушку или дедушку произнести слово — и запишите. После проверки запись услышат все ученики в уроках, а позже она станет частью открытого аудиословаря и
+            будущего ИИ-распознавания шорской речи.
           </p>
           <div className="vh-stats">
-            <div>
-              <b>{recs.length}</b>
-              <span>{plural(recs.length, ['запись', 'записи', 'записей'])} у вас</span>
-            </div>
-            <div className="grow">
-              <div className="row" style={{ justifyContent: 'space-between' }}>
-                <span className="muted" style={{ fontWeight: 800, fontSize: 13 }}>
-                  Цель пилота — {PROJECT_GOAL} записей
-                </span>
+            {serverOn ? (
+              <>
+                <div>
+                  <b>{stats ? stats.approved : '—'}</b>
+                  <span>в общем словаре</span>
+                </div>
+                <div>
+                  <b>{recs.length}</b>
+                  <span>{plural(recs.length, ['ваша', 'ваши', 'ваших'])}</span>
+                </div>
+              </>
+            ) : (
+              <div>
+                <b>{recs.length}</b>
+                <span>{plural(recs.length, ['запись', 'записи', 'записей'])} у вас</span>
               </div>
+            )}
+            <div className="grow">
+              <span className="muted" style={{ fontWeight: 800, fontSize: 13 }}>
+                Цель пилота — {PROJECT_GOAL} записей{serverOn && stats ? ` · собрано ${collected}` : ''}
+              </span>
               <div className="bar blue">
-                <i style={{ width: `${Math.min(100, (recs.length / PROJECT_GOAL) * 100)}%` }} />
+                <i style={{ width: `${Math.min(100, (collected / PROJECT_GOAL) * 100)}%` }} />
               </div>
             </div>
           </div>
@@ -78,7 +119,7 @@ export default function Voices() {
         {[
           ['👵', 'Выберите слово', 'и покажите его старшему'],
           ['🎙️', 'Запишите', 'нажмите кнопку и слушайте'],
-          ['🔊', 'Слушайте в уроках', 'родной голос вместо синтеза'],
+          ['🔊', serverOn ? 'Слушайте все' : 'Слушайте в уроках', serverOn ? 'после проверки — в уроках у всех' : 'родной голос вместо синтеза'],
         ].map(([i, t, s]) => (
           <div key={t} className="step3">
             <span>{i}</span>
@@ -87,6 +128,8 @@ export default function Voices() {
           </div>
         ))}
       </div>
+
+      {n.moderator && <Moderation />}
 
       <div className="voices-controls">
         <div className="chips-scroll">
@@ -109,7 +152,9 @@ export default function Voices() {
       <div className="word-list">
         {learnedFirst.length === 0 && <p className="muted center" style={{ padding: 20 }}>Все слова раздела уже записаны — вы молодец!</p>}
         {learnedFirst.map((it) => {
-          const has = recorded.has(normalize(it.shor));
+          const key = normalize(it.shor);
+          const own = mine.has(key);
+          const shared = community.has(key);
           return (
             <div key={it.id} className="wl-row">
               <SpeakButton text={it.shor} size="sm" />
@@ -117,9 +162,9 @@ export default function Voices() {
                 <ShorText text={it.shor} />
                 <small>{ruShow(it)}</small>
               </div>
-              {has && <span className="pill green">✓ есть голос</span>}
-              <button className={cx('btn sm', has ? 'ghost' : '')} onClick={() => setTarget(it)}>
-                <Icon name="mic" size={18} /> {has ? 'Ещё' : 'Записать'}
+              {own ? <span className="pill green">✓ ваш голос</span> : shared && <span className="pill blue">голос из словаря</span>}
+              <button className={cx('btn sm', own || shared ? 'ghost' : '')} onClick={() => setTarget(it)}>
+                <Icon name="mic" size={18} /> {own || shared ? 'Ещё' : 'Записать'}
               </button>
             </div>
           );
@@ -130,10 +175,12 @@ export default function Voices() {
         <section className="my-recs">
           <h2>Мои записи</h2>
           {recs.map((r) => (
-            <RecRow key={r.id} r={r} />
+            <RecRow key={r.id} r={r} online={online} />
           ))}
           <p className="muted small-note">
-            Записи хранятся на этом устройстве. Отправка в общий аудиословарь появится вместе с сервером проекта — каждую запись проверят носитель и преподаватель.
+            {serverOn
+              ? 'Записи хранятся на этом устройстве. Отправленные в общий словарь проверяют носитель языка и преподаватель — после проверки их слышат все ученики.'
+              : 'Записи хранятся на этом устройстве. Отправка в общий аудиословарь появится вместе с сервером проекта — каждую запись проверят носитель и преподаватель.'}
           </p>
         </section>
       )}
@@ -143,11 +190,42 @@ export default function Voices() {
   );
 }
 
-function RecRow({ r }: { r: Recording }) {
+const STATUS: Record<NonNullable<Recording['remoteStatus']>, [string, string]> = {
+  pending: ['На проверке', 'gold'],
+  approved: ['В общем словаре', 'green'],
+  rejected: ['Не принята', 'red'],
+};
+
+function RecRow({ r, online }: { r: Recording; online: boolean }) {
   const [url] = useState(() => URL.createObjectURL(r.blob));
   const [ask, setAsk] = useState(false);
+  const [busy, setBusy] = useState(false);
   useEffect(() => () => URL.revokeObjectURL(url), [url]);
-  const ext = r.mime.includes('mp4') || r.mime.includes('m4a') || r.mime.includes('aac') ? 'mp4' : 'webm';
+  const ext = r.mime.includes('mp4') || r.mime.includes('m4a') || r.mime.includes('aac') ? 'mp4' : r.mime.includes('wav') ? 'wav' : r.mime.includes('mpeg') ? 'mp3' : 'webm';
+  const st = r.remoteStatus ? STATUS[r.remoteStatus] : null;
+
+  const share = async () => {
+    setBusy(true);
+    try {
+      await shareRecording(r);
+      toast('Запись отправлена на проверку', { icon: '📨', sub: 'После проверки её услышат все ученики' });
+    } catch (e) {
+      toast('Не удалось отправить', { icon: '⚠️', sub: errorText(e) });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async () => {
+    setBusy(true);
+    try {
+      if (r.remoteId && r.remoteStatus !== 'rejected') await unshareRecording(r);
+      await deleteRecording(r.id!);
+    } catch (e) {
+      toast('Не удалось удалить из общего словаря', { icon: '⚠️', sub: errorText(e) });
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="rec-row">
       <audio src={url} controls preload="none" />
@@ -158,10 +236,11 @@ function RecRow({ r }: { r: Recording }) {
           {r.relation ? ` · ${r.relation}` : ''}
           {r.place ? ` · ${r.place}` : ''} · {fmtDate(r.createdAt)}
         </small>
+        {st && <span className={cx('pill rec-status', st[1])}>{st[0]}</span>}
       </div>
       {ask ? (
         <span className="row" style={{ gap: 6 }}>
-          <button className="btn sm red" onClick={() => deleteRecording(r.id!)}>
+          <button className="btn sm red" disabled={busy} onClick={remove}>
             Удалить
           </button>
           <button className="btn sm ghost" onClick={() => setAsk(false)}>
@@ -170,6 +249,11 @@ function RecRow({ r }: { r: Recording }) {
         </span>
       ) : (
         <>
+          {serverOn && (!r.remoteId || r.remoteStatus === 'rejected') && (
+            <button className="btn sm" disabled={!online || busy} onClick={share} title={online ? undefined : 'Нет связи с сервером'}>
+              <Icon name="voices" size={18} /> {busy ? 'Отправляем…' : r.remoteStatus === 'rejected' ? 'Ещё раз' : 'В словарь'}
+            </button>
+          )}
           <button
             className="icon-btn"
             aria-label="Сохранить файл"
@@ -186,12 +270,70 @@ function RecRow({ r }: { r: Recording }) {
           </button>
         </>
       )}
+      {ask && r.remoteId && r.remoteStatus !== 'rejected' && <small className="rec-warn">Запись удалится и из общего словаря.</small>}
     </div>
   );
 }
 
+/** Проверка новых записей — для модераторов (носитель языка, преподаватель). */
+function Moderation() {
+  const [list, setList] = useState<RemoteRecording[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const load = () => pendingRecordings().then(setList, () => setList([]));
+  useEffect(() => {
+    load();
+  }, []);
+  const act = async (r: RemoteRecording, ok: boolean) => {
+    setBusy(r.id);
+    try {
+      if (ok) await approveRecording(r.id);
+      else await rejectRecording(r);
+      setList((l) => (l ?? []).filter((x) => x.id !== r.id));
+      voicesNet.set({ at: 0 });
+      if (ok) loadCommunityVoices(true).catch(noop);
+    } catch (e) {
+      toast('Не получилось', { icon: '⚠️', sub: errorText(e) });
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <section className="card moderation">
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <h3>Проверка записей</h3>
+        <button className="icon-btn" aria-label="Обновить" onClick={load}>
+          <Icon name="refresh" size={20} />
+        </button>
+      </div>
+      {list === null && <p className="muted">Загружаем…</p>}
+      {list?.length === 0 && <p className="muted">Новых записей нет — всё проверено.</p>}
+      {list?.map((r) => (
+        <div key={r.id} className="rec-row">
+          <audio src={recordingUrl(r)} controls preload="none" />
+          <div className="grow">
+            <ShorText text={r.text} /> <span className="muted">— {r.ru}</span>
+            <small>
+              {r.speaker || 'Без имени'}
+              {r.relation ? ` · ${r.relation}` : ''}
+              {r.place ? ` · ${r.place}` : ''} · {fmtDate(Date.parse(r.created_at))} · {Math.round(r.size / 1024)} КБ
+            </small>
+          </div>
+          <span className="row" style={{ gap: 6 }}>
+            <button className="btn sm green" disabled={busy === r.id} onClick={() => act(r, true)}>
+              Принять
+            </button>
+            <button className="btn sm red" disabled={busy === r.id} onClick={() => act(r, false)}>
+              Отклонить
+            </button>
+          </span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function RecorderModal({ item, onClose }: { item: Item | null; onClose: () => void }) {
-  const [phase, setPhase] = useState<'idle' | 'rec' | 'review' | 'error'>('idle');
+  const [phase, setPhase] = useState<'idle' | 'rec' | 'review' | 'sending' | 'error'>('idle');
   const [err, setErr] = useState('');
   const [blob, setBlob] = useState<Blob | null>(null);
   const [url, setUrl] = useState('');
@@ -199,6 +341,8 @@ function RecorderModal({ item, onClose }: { item: Item | null; onClose: () => vo
   const [speaker, setSpeaker] = useState(() => localStorage.getItem('tadar.speaker') ?? '');
   const [relation, setRelation] = useState(() => localStorage.getItem('tadar.relation') ?? 'бабушка');
   const [place, setPlace] = useState(() => localStorage.getItem('tadar.place') ?? '');
+  const [share, setShare] = useState(() => localStorage.getItem('tadar.share') !== '0');
+  const n = net.use();
   const recRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -238,8 +382,14 @@ function RecorderModal({ item, onClose }: { item: Item | null; onClose: () => vo
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
       streamRef.current = stream;
-      const mime = pickMime();
-      const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      const mime = recorderMime();
+      // 32 кбит/с: слово весит десятки килобайт — так помещаются тысячи записей
+      let rec: MediaRecorder;
+      try {
+        rec = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: VOICE_BITRATE } : { audioBitsPerSecond: VOICE_BITRATE });
+      } catch {
+        rec = new MediaRecorder(stream);
+      }
       const chunks: Blob[] = [];
       rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
       rec.onstop = () => {
@@ -329,35 +479,48 @@ function RecorderModal({ item, onClose }: { item: Item | null; onClose: () => vo
     localStorage.setItem('tadar.speaker', speaker);
     localStorage.setItem('tadar.relation', relation);
     localStorage.setItem('tadar.place', place);
+    localStorage.setItem('tadar.share', share ? '1' : '0');
+    const rec: Recording = {
+      itemId: item.id,
+      text: item.shor,
+      ru: ruShow(item),
+      speaker: speaker.trim(),
+      relation,
+      place: place.trim(),
+      createdAt: Date.now(),
+      mime: blob.type,
+      duration: secs,
+      blob,
+    };
+    let id: number;
     try {
-      await saveRecording({
-        itemId: item.id,
-        text: item.shor,
-        ru: ruShow(item),
-        speaker: speaker.trim(),
-        relation,
-        place: place.trim(),
-        createdAt: Date.now(),
-        mime: blob.type,
-        duration: secs,
-        blob,
-      });
-      questEvent('record', 1);
-      const got = runAchievementCheck();
-      got.forEach((id) => {
-        const a = ACHIEVEMENTS.find((x) => x.id === id);
-        if (a) toast(`Достижение: ${a.title}`, { icon: a.icon, sub: a.desc });
-      });
-      sfx('correct');
-      toast('Запись сохранена', { icon: '🎙️', sub: `«${item.shor}» теперь звучит родным голосом` });
-      onClose();
+      id = await saveRecording(rec);
     } catch {
       toast('Не удалось сохранить запись', { icon: '⚠️' });
+      return;
     }
+    questEvent('record', 1);
+    runAchievementCheck().forEach((aid) => {
+      const a = ACHIEVEMENTS.find((x) => x.id === aid);
+      if (a) toast(`Достижение: ${a.title}`, { icon: a.icon, sub: a.desc });
+    });
+    sfx('correct');
+    if (serverOn && share && n.status === 'online') {
+      setPhase('sending');
+      try {
+        await shareRecording({ ...rec, id });
+        toast('Запись отправлена на проверку', { icon: '📨', sub: `«${item.shor}» услышат все ученики после проверки` });
+      } catch (e) {
+        toast('Запись сохранена на устройстве', { icon: '🎙️', sub: `В словарь не ушла: ${errorText(e)} Отправьте позже из «Моих записей».` });
+      }
+    } else {
+      toast('Запись сохранена', { icon: '🎙️', sub: `«${item.shor}» теперь звучит родным голосом` });
+    }
+    onClose();
   };
 
   return (
-    <Modal open={!!item} onClose={onClose}>
+    <Modal open={!!item} onClose={phase === 'sending' ? undefined : onClose} dismissable={phase !== 'sending'}>
       <div className="recorder">
         <span className="eyebrow">Голоса старших</span>
         <div className="rec-word">
@@ -375,7 +538,7 @@ function RecorderModal({ item, onClose }: { item: Item | null; onClose: () => vo
             <div className="rec-form">
               <label>
                 <span className="label">Кто говорит</span>
-                <input id="rec-speaker" className="input" value={speaker} onChange={(e) => setSpeaker(e.target.value)} placeholder="Например: Анна Петровна" />
+                <input id="rec-speaker" className="input" value={speaker} maxLength={60} onChange={(e) => setSpeaker(e.target.value)} placeholder="Например: Анна Петровна" />
               </label>
               <div className="chips">
                 {RELATIONS.map((r) => (
@@ -386,7 +549,7 @@ function RecorderModal({ item, onClose }: { item: Item | null; onClose: () => vo
               </div>
               <label>
                 <span className="label">Откуда (необязательно)</span>
-                <input id="rec-place" className="input" value={place} onChange={(e) => setPlace(e.target.value)} placeholder="Село, улус или город" />
+                <input id="rec-place" className="input" value={place} maxLength={60} onChange={(e) => setPlace(e.target.value)} placeholder="Село, улус или город" />
               </label>
             </div>
             <div className="rec-actions">
@@ -413,20 +576,33 @@ function RecorderModal({ item, onClose }: { item: Item | null; onClose: () => vo
           </>
         )}
 
-        {phase === 'review' && (
+        {(phase === 'review' || phase === 'sending') && (
           <>
             <audio src={url} controls autoPlay className="rec-audio" />
+            {serverOn && (
+              <label className="rec-share">
+                <input type="checkbox" checked={share} disabled={phase === 'sending'} onChange={(e) => setShare(e.target.checked)} />
+                <span>
+                  Отправить в общий аудиословарь
+                  <small>{n.status === 'online' ? 'После проверки запись услышат все ученики. Файл сожмём до нескольких десятков килобайт.' : 'Сейчас нет связи — запись останется на устройстве, отправить можно позже.'}</small>
+                </span>
+              </label>
+            )}
             <div className="row">
-              <button className="btn ghost grow" onClick={() => setPhase('idle')}>
+              <button className="btn ghost grow" disabled={phase === 'sending'} onClick={() => setPhase('idle')}>
                 <Icon name="refresh" size={18} /> Заново
               </button>
-              <button className="btn green grow" onClick={save}>
-                Сохранить
+              <button className="btn green grow" disabled={phase === 'sending'} onClick={save}>
+                {phase === 'sending' ? 'Отправляем…' : 'Сохранить'}
               </button>
             </div>
           </>
         )}
-        <p className="rec-consent">Записывайте только с согласия говорящего. Записи остаются на вашем устройстве, пока вы сами ими не поделитесь.</p>
+        <p className="rec-consent">
+          {serverOn
+            ? 'Записывайте только с согласия говорящего. В общем словаре видны слово, имя говорящего и место записи.'
+            : 'Записывайте только с согласия говорящего. Записи остаются на вашем устройстве, пока вы сами ими не поделитесь.'}
+        </p>
       </div>
     </Modal>
   );

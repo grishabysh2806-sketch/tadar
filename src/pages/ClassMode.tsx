@@ -1,30 +1,21 @@
-import { useEffect, useMemo, useState } from 'react';
-import qrcode from 'qrcode-generator';
+import { useEffect, useState } from 'react';
 import { useStore, setState, getState, type Assignment, type ClassRoom } from '../state/store';
-import { UNITS, LESSONS, lessonById } from '../data/course';
+import { LESSONS, lessonById } from '../data/course';
 import { currentLessonId, weekXp, runAchievementCheck, ACHIEVEMENTS, lessonsDone } from '../state/game';
 import { Icon } from '../ui/Icon';
 import { Avatar, Mascot, Modal, toast, ShorText } from '../ui/kit';
 import { navigate } from '../lib/router';
 import { addDays, dayKey, fmtDate, rng, cx, plural, daysBetween } from '../lib/util';
 import { PageHead } from '../layout/Layout';
-import { saveFile, copyText } from '../lib/platform';
+import { serverOn } from '../net/client';
+import { QR, ClassPitch, NewTaskModal, joinUrl as makeJoinUrl, toCsv, copyTable, saveTable } from './ClassParts';
+import { TeacherOnline, StudentOnline } from './ClassOnline';
 
 const CODE_CHARS = 'АБВГДЕКМНПРСТ23456789';
 function makeCode() {
   let c = '';
   for (let i = 0; i < 6; i++) c += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
   return c;
-}
-
-export function QR({ text, size = 168 }: { text: string; size?: number }) {
-  const svg = useMemo(() => {
-    const q = qrcode(0, 'M');
-    q.addData(unescape(encodeURIComponent(text)));
-    q.make();
-    return q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
-  }, [text]);
-  return <div className="qr" style={{ width: size, height: size }} dangerouslySetInnerHTML={{ __html: svg }} />;
 }
 
 const NAMES = ['Айана К.', 'Тимур Ч.', 'Лиза Т.', 'Артём С.', 'Аяна М.', 'Вика Ш.', 'Санжар А.', 'Олег К.', 'Мария Т.', 'Даша Б.', 'Ильяс Ч.', 'Полина Н.', 'Никита Ю.', 'Алина К.'];
@@ -109,23 +100,12 @@ export default function ClassMode() {
             <small>Вступлю в класс по коду учителя и буду выполнять задания</small>
           </button>
         </div>
-        <ClassPitch />
+        <ClassPitch online={serverOn} />
       </div>
     );
   }
+  if (serverOn) return role === 'teacher' ? <TeacherOnline /> : <StudentOnline />;
   return role === 'teacher' ? <Teacher /> : <StudentView />;
-}
-
-function ClassPitch() {
-  return (
-    <div className="card flat class-pitch">
-      <Mascot pose="head" size={70} />
-      <p>
-        Шорский изучают в школах юга Кузбасса. «Класс» даёт учителю интерактивные задания и живую практику учеников вне урока. Сейчас это демо: ученики класса — пример, данные
-        хранятся на устройстве.
-      </p>
-    </div>
-  );
 }
 
 function Teacher() {
@@ -201,23 +181,16 @@ function Teacher() {
       ]
     : students;
   const sorted = [...all].sort((a, b) => b.xp - a.xp);
-  const joinUrl = `${location.origin}${location.pathname}#/join/${cls.code}`;
+  const joinUrl = makeJoinUrl(cls.code);
   const totalXp = all.reduce((a, b) => a + b.xp, 0);
   const avgAcc = Math.round(all.reduce((a, b) => a + b.acc, 0) / all.length);
 
   const exportCsv = () => {
     const head = ['Ученик', 'Опыт за неделю', 'Уроков', 'Серия', 'Точность %', 'Был(а)', ...cls.assignments.map((a) => lessonById(a.lessonId)?.lesson.title ?? a.lessonId)];
     const lines = sorted.map((st) => [st.name, st.xp, st.lessons, st.streak, st.acc, st.last, ...cls.assignments.map((a) => (st.done[a.id] ? 'да' : 'нет'))]);
-    return [head, ...lines].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
+    return toCsv([head, ...lines]);
   };
-  const saveCsv = async () => {
-    const res = await saveFile(`tadar-${cls.name.replace(/[^\p{L}\p{N}]+/gu, '-')}.csv`, '﻿' + exportCsv());
-    if (res === 'saved') toast('Таблица сохранена', { icon: '📊' });
-    else if (res === 'failed') {
-      const ok = await copyText(exportCsv());
-      toast(ok ? 'Таблица скопирована' : 'Не удалось сохранить таблицу', { icon: ok ? '📋' : '⚠️', sub: ok ? 'Вставьте её в Excel или Google Таблицы' : undefined });
-    }
-  };
+  const saveCsv = () => saveTable(cls.name, exportCsv());
 
   return (
     <div className="page classmode wide-page">
@@ -349,13 +322,7 @@ function Teacher() {
       <div className="row" style={{ justifyContent: 'space-between', marginTop: 8 }}>
         <h2 className="sec-title">Ученики</h2>
         <span className="row" style={{ gap: 8 }}>
-          <button
-            className="btn sm ghost"
-            onClick={async () => {
-              const ok = await copyText(exportCsv());
-              toast(ok ? 'Таблица скопирована' : 'Не удалось скопировать', { icon: ok ? '📋' : '⚠️', sub: ok ? 'Вставьте её в Excel или Google Таблицы' : undefined });
-            }}
-          >
+          <button className="btn sm ghost" onClick={() => copyTable(exportCsv())}>
             <Icon name="copy" size={18} /> Копировать
           </button>
           <button className="btn sm ghost" onClick={saveCsv}>
@@ -393,7 +360,15 @@ function Teacher() {
       </div>
       <p className="muted small-note">Демо-режим: ученики сгенерированы для примера. В пилоте с 10 школами прогресс будет синхронизироваться через сервер.</p>
 
-      <NewTaskModal open={newTask} onClose={() => setNewTask(false)} />
+      <NewTaskModal
+        open={newTask}
+        onClose={() => setNewTask(false)}
+        onCreate={(lessonId, due) =>
+          setState((d) => {
+            d.cls.myClass?.assignments.push({ id: 'a' + Date.now(), lessonId, due, createdAt: Date.now() });
+          })
+        }
+      />
       <Modal open={showQr} onClose={() => setShowQr(false)}>
         <div className="center col" style={{ alignItems: 'center' }}>
           <h2>Вступить в класс {cls.name}</h2>
@@ -403,63 +378,6 @@ function Teacher() {
         </div>
       </Modal>
     </div>
-  );
-}
-
-function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [unit, setUnit] = useState('u1');
-  const [lesson, setLesson] = useState('u1l1');
-  const [due, setDue] = useState(addDays(dayKey(), 7));
-  const u = UNITS.find((x) => x.id === unit)!;
-  return (
-    <Modal open={open} onClose={onClose}>
-      <h2>Новое задание</h2>
-      <div className="col">
-        <label>
-          <span className="label">Раздел</span>
-          <select
-            className="input"
-            value={unit}
-            onChange={(e) => {
-              setUnit(e.target.value);
-              setLesson(UNITS.find((x) => x.id === e.target.value)!.lessons[0].id);
-            }}
-          >
-            {UNITS.map((x) => (
-              <option key={x.id} value={x.id}>
-                {x.n}. {x.shorTitle} — {x.title}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span className="label">Урок</span>
-          <select className="input" value={lesson} onChange={(e) => setLesson(e.target.value)}>
-            {u.lessons.map((l, i) => (
-              <option key={l.id} value={l.id}>
-                Урок {i + 1}: {l.title}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span className="label">Срок</span>
-          <input className="input" type="date" value={due} min={dayKey()} onChange={(e) => setDue(e.target.value)} />
-        </label>
-        <button
-          className="btn green lg"
-          onClick={() => {
-            setState((d) => {
-              d.cls.myClass?.assignments.push({ id: 'a' + Date.now(), lessonId: lesson, due, createdAt: Date.now() });
-            });
-            toast('Задание отправлено классу', { icon: '📬' });
-            onClose();
-          }}
-        >
-          Задать
-        </button>
-      </div>
-    </Modal>
   );
 }
 

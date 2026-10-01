@@ -2155,3 +2155,165 @@
     background: linear-gradient(180deg, rgba(5, 18, 42, 0.86) 0%, rgba(5, 18, 42, 0.55) 55%, rgba(5, 18, 42, 0.1) 85%);
   }
 }
+
+/* ── Сервер: лига, класс, голоса, аккаунт ──────────────────── */
+.league-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 4px 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--muted);
+}
+.live-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--line-2);
+  flex: none;
+}
+.live-dot.on {
+  background: var(--green);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--green) 60%, transparent);
+  animation: livePulse 2s ease-out infinite;
+}
+@keyframes livePulse {
+  to {
+    box-shadow: 0 0 0 8px transparent;
+  }
+}
+.board-row.skeleton {
+  height: 62px;
+  background: var(--surface-2);
+  animation: flicker 1.4s ease-in-out infinite;
+}
+.league-invite {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  color: var(--blue);
+}
+.league-invite p {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+}
+.net-gate {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.net-gate p {
+  font-size: 14px;
+  font-weight: 700;
+}
+.net-note {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.class-switch {
+  margin: -6px 0 14px;
+}
+.class-switch .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.empty-students {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--blue);
+}
+.empty-students p {
+  font-weight: 700;
+  color: var(--text);
+}
+.st-tasks .kick-btn {
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
+  color: var(--faint);
+}
+.st-tasks .kick-btn:hover {
+  color: var(--red);
+}
+.st-tasks .kick {
+  display: flex;
+  gap: 4px;
+  flex-basis: 100%;
+}
+.rec-status {
+  margin-top: 6px;
+  font-size: 12px;
+  padding: 2px 9px;
+}
+.rec-warn {
+  flex-basis: 100%;
+  color: var(--red-d) !important;
+}
+.moderation {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+  border-color: var(--blue-line);
+}
+.moderation .rec-row {
+  margin-bottom: 0;
+}
+.rec-share {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  font-weight: 800;
+  cursor: pointer;
+}
+.rec-share input {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  accent-color: var(--green);
+  flex: none;
+}
+.rec-share small {
+  display: block;
+  margin-top: 2px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--muted);
+}
+.email-flow {
+  gap: 12px;
+}
+.email-flow .rec-err {
+  font-size: 14px;
+}
+.account .row {
+  gap: 10px;
+}
+.account-id {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.account-id .btn.text {
+  padding: 0;
+  min-height: 0;
+}
+.splash-login {
+  color: #fff;
+  opacity: 0.9;
+}

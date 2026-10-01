@@ -1,7 +1,8 @@
 /*
  * Озвучка шорских слов.
- * 1) Если слово записано в «Голосах старших» — играем запись носителя.
- * 2) Иначе — синтез речи браузера. Шорских голосов нет, поэтому текст
+ * 1) Если слово записано в «Голосах старших» на этом устройстве — играем эту запись.
+ * 2) Иначе — проверенная запись из общего аудиословаря (сервер).
+ * 3) Иначе — синтез речи браузера. Шорских голосов нет, поэтому текст
  *    транслитерируется под ближайший тюркский голос (турецкий, казахский…),
  *    а при их отсутствии — под русский.
  */
@@ -22,6 +23,10 @@ export interface Recording {
   mime: string;
   duration: number;
   blob: Blob;
+  /** Копия в общем аудиословаре: id строки, путь файла и статус проверки. */
+  remoteId?: string;
+  remotePath?: string;
+  remoteStatus?: 'pending' | 'approved' | 'rejected';
 }
 
 const DB_NAME = 'tadar-voices';
@@ -80,9 +85,11 @@ async function rebuildIndex() {
   recListeners.forEach((l) => l());
 }
 
-export async function saveRecording(r: Recording) {
-  await tx('readwrite', (st) => st.add(r));
+/** Сохранить запись на устройстве; возвращает её id. */
+export async function saveRecording(r: Recording): Promise<number> {
+  const id = await tx<IDBValidKey>('readwrite', (st) => st.add(r));
   await rebuildIndex();
+  return Number(id);
 }
 
 export async function deleteRecording(id: number) {
@@ -90,8 +97,25 @@ export async function deleteRecording(id: number) {
   await rebuildIndex();
 }
 
-export const hasRecording = (text: string) => urlByText.has(normalize(text));
-export const recordedTexts = () => new Set(urlByText.keys());
+/** Обновить запись (например, отметку об отправке в общий словарь). */
+export async function updateRecording(r: Recording) {
+  await tx('readwrite', (st) => st.put(r));
+  await rebuildIndex();
+}
+
+/* ── Общий аудиословарь: проверенные записи с сервера ───────────── */
+
+const communityByText = new Map<string, string>();
+
+/** Список проверенных записей: текст → ссылка на файл (свежие идут первыми). */
+export function setCommunityVoices(list: { text: string; url: string }[]) {
+  communityByText.clear();
+  for (const r of [...list].reverse()) communityByText.set(normalize(r.text), r.url);
+  recListeners.forEach((l) => l());
+}
+
+export const hasCommunityVoice = (text: string) => communityByText.has(normalize(text));
+export const communityTexts = () => new Set(communityByText.keys());
 
 export function initVoices() {
   rebuildIndex().catch(() => undefined);
@@ -201,7 +225,7 @@ export function stopSpeech() {
 }
 
 export function canSpeak() {
-  return ttsSupported() || urlByText.size > 0;
+  return ttsSupported() || urlByText.size > 0 || communityByText.size > 0;
 }
 
 /** Произнести шорский текст. Возвращает промис окончания. */
@@ -209,17 +233,24 @@ export function speakShor(text: string, opts: { slow?: boolean; force?: boolean 
   const st = getState().settings;
   if (!st.tts && !opts.force) return Promise.resolve();
   stopSpeech();
-  const rec = urlByText.get(normalize(text));
+  const key = normalize(text);
+  const rec = urlByText.get(key) ?? communityByText.get(key);
   if (rec) {
     return new Promise((resolve) => {
       const a = new Audio(rec);
       current = a;
       a.playbackRate = opts.slow ? 0.75 : 1;
       a.onended = () => resolve();
-      a.onerror = () => resolve();
+      // файл недоступен (нет сети) — читаем синтезом
+      a.onerror = () => (current === a ? speakTts(text, opts).then(resolve) : resolve());
       a.play().catch(() => resolve());
     });
   }
+  return speakTts(text, opts);
+}
+
+function speakTts(text: string, opts: { slow?: boolean }): Promise<void> {
+  const st = getState().settings;
   if (!ttsSupported()) return Promise.resolve();
   return new Promise((resolve) => {
     const v = pickVoice();

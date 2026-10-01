@@ -3,7 +3,9 @@ import { Icon, type IconName } from '../ui/Icon';
 import { Modal, Mascot, Avatar } from '../ui/kit';
 import { navigate, useRoute } from '../lib/router';
 import { useStore, heartsNow, nextHeartIn, streakNow, xpToday, MAX_HEARTS } from '../state/store';
-import { LEAGUES, leagueBoard, ensureQuests, questDef, practiceAvailable } from '../state/game';
+import { LEAGUES, leagueBoard, leagueZones, weekXp, ensureQuests, questDef, practiceAvailable } from '../state/game';
+import { net, serverOn } from '../net/client';
+import { leagueNet, refreshBoardIfOld } from '../net/league';
 import { setState } from '../state/store';
 import { cx, dayKey, addDays, plural, weekStart } from '../lib/util';
 import { OrnamentBand } from '../ui/Ornament';
@@ -281,11 +283,31 @@ export function StatBar({ inRail }: { inRail?: boolean }) {
 
 /* ── Правая колонка ─────────────────────────────────────────── */
 
+/** Место в лиге: группа с сервера или учебная группа на устройстве. */
+function useLeaguePlace() {
+  const s = useStore((x) => x);
+  const n = net.use();
+  const lgNet = leagueNet.use();
+  const myXp = weekXp(s);
+  useEffect(() => {
+    if (serverOn && n.status === 'online' && myXp > 0) refreshBoardIfOld();
+  }, [n.status, myXp]);
+  if (!serverOn) {
+    const board = leagueBoard(s);
+    const rank = board.findIndex((r) => r.me) + 1;
+    return { rank, size: board.length, xp: board[rank - 1].xp };
+  }
+  if (myXp <= 0) return { rank: 0, size: 0, xp: 0 };
+  const rows = lgNet.rows.map((r) => (r.id === n.uid ? { ...r, xp: Math.max(r.xp, myXp) } : r)).sort((a, b) => b.xp - a.xp);
+  const rank = rows.findIndex((r) => r.id === n.uid) + 1;
+  return { rank, size: rows.length, xp: myXp };
+}
+
 function RailLeague() {
   const s = useStore((x) => x);
   const lg = LEAGUES[s.league.tier];
-  const board = leagueBoard(s);
-  const rank = board.findIndex((r) => r.me) + 1;
+  const place = useLeaguePlace();
+  const up = leagueZones(place.size, s.league.tier).up;
   return (
     <div className="card rail-card">
       <div className="row">
@@ -299,10 +321,12 @@ function RailLeague() {
           <Icon name="league" size={36} />
         </span>
         <p>
-          {board[rank - 1].xp > 0 ? (
+          {place.xp > 0 && place.rank > 0 ? (
             <>
-              Вы на <b>{rank}-м месте</b>. Топ-5 переходят в следующую лигу.
+              Вы на <b>{place.rank}-м месте</b> из {place.size}. {up > 1 ? `Топ-${up} переходят в следующую лигу.` : up === 1 ? 'Лучший переходит в следующую лигу.' : 'Это высшая лига!'}
             </>
+          ) : place.xp > 0 ? (
+            <>Вы в таблице этой недели — откройте лигу, чтобы увидеть соперников.</>
           ) : (
             <>Пройдите урок, чтобы попасть в таблицу этой недели.</>
           )}
