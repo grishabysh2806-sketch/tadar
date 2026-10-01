@@ -1,8 +1,7 @@
 name: Публикация на GitHub Pages
 
+# Запуск вручную во вкладке Actions (основной хостинг — Vercel, он собирает сам)
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:

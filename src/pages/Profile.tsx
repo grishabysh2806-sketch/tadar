@@ -63,8 +63,8 @@ export default function Profile() {
   return (
     <div className="page profile">
       <section className="profile-hero">
-        <OrnamentRing size={170} className="ph-ring" color="var(--blue-line)" />
         <div className="ph-avatar">
+          <OrnamentRing size={152} className="ph-ring" color="var(--blue)" />
           <Avatar name={s.profile.name || 'Т'} idx={s.profile.avatar} size={104} />
         </div>
         <div className="ph-info">

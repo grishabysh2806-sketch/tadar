@@ -428,9 +428,18 @@ export function BuildSentence({ ex, value, onChange, locked }: ExProps<number[]>
 
 function ShorKeyboard({ onKey, disabled }: { onKey: (ch: string) => void; disabled?: boolean }) {
   return (
-    <div className="shor-kb" aria-label="Особые буквы">
+    <div className="shor-kb" role="group" aria-label="Шорские буквы">
+      <span className="kb-label">Шорские буквы:</span>
       {SHOR_LETTERS.map((l) => (
-        <button key={l} type="button" className="kb-key" disabled={disabled} onMouseDown={(e) => e.preventDefault()} onClick={() => onKey(l)}>
+        <button
+          key={l}
+          type="button"
+          className="kb-key"
+          disabled={disabled}
+          onPointerDown={(e) => e.preventDefault()}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => onKey(l)}
+        >
           {l}
         </button>
       ))}
@@ -459,6 +468,7 @@ function TextAnswer({ value, onChange, locked, shor, placeholder, onEnter }: { v
     <div className="text-answer">
       <textarea
         ref={ref}
+        id="answer-text"
         className="input type-input"
         value={value}
         disabled={locked}
@@ -481,19 +491,139 @@ function TextAnswer({ value, onChange, locked, shor, placeholder, onEnter }: { v
   );
 }
 
+/* Плитки с буквами: все буквы ответа и несколько похожих — к/қ, г/ғ, н/ң, о/ӧ, у/ӱ */
+const LOOKALIKE: Record<string, string> = { қ: 'к', к: 'қ', ғ: 'г', г: 'ғ', ң: 'н', н: 'ң', ӧ: 'о', о: 'ӧ', ӱ: 'у', у: 'ӱ', ы: 'и', и: 'ы' };
+const COMMON_LETTERS = 'аеилмнопрстчшы'.split('');
+const SPECIAL_RE = /[ғқңӧӱ]/;
+
+export function letterTiles(word: string): string[] {
+  const letters = [...word.toLowerCase().replace(/-$/, '')];
+  const extra: string[] = [];
+  for (const ch of letters) {
+    const twin = LOOKALIKE[ch];
+    if (twin && !letters.includes(twin) && !extra.includes(twin)) extra.push(twin);
+  }
+  const target = Math.min(5, Math.max(3, extra.length));
+  for (const c of shuffle(COMMON_LETTERS)) {
+    if (extra.length >= target) break;
+    if (!letters.includes(c) && !extra.includes(c)) extra.push(c);
+  }
+  return shuffle([...letters, ...extra.slice(0, target)]);
+}
+
+function LetterBank({ word, value, onChange, locked }: { word: string; value: string; onChange: (v: string) => void; locked: boolean }) {
+  const tiles = useMemo(() => letterTiles(word), [word]);
+  const [chosen, setChosen] = useState<number[]>([]);
+  useEffect(() => {
+    if (!value) setChosen([]);
+  }, [value]);
+  const set = (next: number[]) => {
+    setChosen(next);
+    onChange(next.map((i) => tiles[i]).join(''));
+  };
+  const label = (t: string) => (t === ' ' ? '␣' : t);
+  return (
+    <div className="letter-bank">
+      <div className={cx('lb-answer', locked && 'locked')}>
+        {chosen.length === 0 && <span className="lb-hint">Нажимайте на буквы ниже, чтобы составить слово</span>}
+        {chosen.map((ti) => (
+          <button
+            key={ti}
+            type="button"
+            className={cx('tile letter', SPECIAL_RE.test(tiles[ti]) && 'special')}
+            disabled={locked}
+            aria-label={`Убрать букву ${tiles[ti]}`}
+            onClick={() => {
+              sfx('pop');
+              set(chosen.filter((x) => x !== ti));
+            }}
+          >
+            {label(tiles[ti])}
+          </button>
+        ))}
+        {chosen.length > 0 && !locked && (
+          <button type="button" className="lb-back" aria-label="Стереть последнюю букву" onClick={() => set(chosen.slice(0, -1))}>
+            <Icon name="arrow-left" size={20} />
+          </button>
+        )}
+      </div>
+      <div className="lb-pool">
+        {tiles.map((t, i) => {
+          const used = chosen.includes(i);
+          return (
+            <button
+              key={i}
+              type="button"
+              className={cx('tile letter', used && 'used', SPECIAL_RE.test(t) && 'special', t === ' ' && 'space')}
+              disabled={used || locked}
+              onClick={() => {
+                sfx('pop');
+                set([...chosen, i]);
+              }}
+            >
+              {t === ' ' ? 'пробел' : t}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+type TypingMode = 'bank' | 'keyboard';
+function initialTypingMode(): TypingMode {
+  try {
+    const saved = localStorage.getItem('tadar.typing');
+    if (saved === 'bank' || saved === 'keyboard') return saved;
+  } catch {
+    /* noop */
+  }
+  return window.matchMedia?.('(pointer: coarse)').matches ? 'bank' : 'keyboard';
+}
+
+/** Ответ на шорском: из плиток с буквами (по умолчанию на телефоне) или с клавиатуры. */
+function ShorAnswer({ word, value, onChange, locked, placeholder, onEnter }: { word: string; value: string; onChange: (v: string) => void; locked: boolean; placeholder: string; onEnter: () => void }) {
+  const [mode, setMode] = useState<TypingMode>(initialTypingMode);
+  const toggle = () => {
+    const next: TypingMode = mode === 'bank' ? 'keyboard' : 'bank';
+    onChange('');
+    setMode(next);
+    try {
+      localStorage.setItem('tadar.typing', next);
+    } catch {
+      /* noop */
+    }
+  };
+  return (
+    <div className="shor-answer">
+      {mode === 'bank' ? (
+        <LetterBank word={word} value={value} onChange={onChange} locked={locked} />
+      ) : (
+        <TextAnswer value={value} onChange={onChange} locked={locked} shor placeholder={placeholder} onEnter={onEnter} />
+      )}
+      {!locked && (
+        <button type="button" className="mode-toggle" onClick={toggle}>
+          <Icon name={mode === 'bank' ? 'keyboard' : 'abc'} size={20} />
+          {mode === 'bank' ? 'Ввести с клавиатуры' : 'Собрать из букв'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function TypeAnswer({ ex, value, onChange, locked, onEnter }: ExProps<string> & { onEnter: () => void }) {
   if (ex.kind !== 'type') return null;
   const it = ex.item;
   const toShor = ex.dir === 'ru2shor';
   return (
     <div className="ex rise">
-      <p className="ex-q">{toShor ? 'Напишите по-шорски' : 'Напишите перевод на русский'}</p>
+      <p className="ex-q">{toShor ? 'Как это будет по-шорски?' : 'Напишите перевод на русский'}</p>
       <div className="prompt-row">
         <Mascot pose="head" size={88} />
         <div className="bubble prompt-bubble">
           {toShor ? (
             <span className="ru-sentence">
-              {ruShow(it)} <Picture item={it} />
+              {ruShow(it)} {(it.emoji || it.swatch || it.num !== undefined) && <Picture item={it} />}
             </span>
           ) : (
             <>
@@ -503,7 +633,11 @@ export function TypeAnswer({ ex, value, onChange, locked, onEnter }: ExProps<str
           )}
         </div>
       </div>
-      <TextAnswer value={value ?? ''} onChange={onChange} locked={locked} shor={toShor} placeholder={toShor ? 'Введите слово на шорском' : 'Введите перевод'} onEnter={onEnter} />
+      {toShor ? (
+        <ShorAnswer word={it.shor} value={value ?? ''} onChange={onChange} locked={locked} placeholder="Введите слово на шорском" onEnter={onEnter} />
+      ) : (
+        <TextAnswer value={value ?? ''} onChange={onChange} locked={locked} shor={false} placeholder="Нажмите и введите перевод" onEnter={onEnter} />
+      )}
     </div>
   );
 }
@@ -517,7 +651,7 @@ export function ListenType({ ex, value, onChange, locked, onEnter }: ExProps<str
         <SpeakButton text={ex.item.shor} size="lg" autoPlay />
         <SpeakButton text={ex.item.shor} size="md" slow />
       </div>
-      <TextAnswer value={value ?? ''} onChange={onChange} locked={locked} shor placeholder="Введите услышанное слово" onEnter={onEnter} />
+      <ShorAnswer word={ex.item.shor} value={value ?? ''} onChange={onChange} locked={locked} placeholder="Введите услышанное слово" onEnter={onEnter} />
     </div>
   );
 }

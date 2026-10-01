@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useId, type CSSProperties } from 'react';
 
 /* Шорский орнамент «бараньи рога» (кочкар мӱӱс) — мотив из презентации. */
 
@@ -46,14 +46,17 @@ export function OrnamentRing({
   );
 }
 
-/** Полоса орнамента для разделителей. */
+/** Полоса орнамента для разделителей: мотив повторяется без растяжения. */
 export function OrnamentBand({ color = 'currentColor', height = 22, opacity = 1 }: { color?: string; height?: number; opacity?: number }) {
+  const id = 'orn-' + useId().replace(/[^a-zA-Z0-9_-]/g, '');
+  const k = height / 24;
   return (
-    <svg width="100%" height={height} preserveAspectRatio="none" viewBox="0 0 240 24" aria-hidden style={{ opacity, display: 'block' }}>
+    <svg width="100%" height={height} aria-hidden style={{ opacity, display: 'block' }}>
       <defs>
-        <pattern id="orn-band" width="40" height="24" patternUnits="userSpaceOnUse">
+        <pattern id={id} width={44 * k} height={height} patternUnits="userSpaceOnUse">
           <path
-            d="M20 22V12 M20 12C20 7 15.5 4.5 13 6.8 11.3 8.4 12.4 11.3 14.8 10.8 16.3 10.5 16.3 8.6 15.1 8.3 M20 12C20 7 24.5 4.5 27 6.8 28.7 8.4 27.6 11.3 25.2 10.8 23.7 10.5 23.7 8.6 24.9 8.3"
+            transform={`scale(${k})`}
+            d="M22 22V12 M22 12C22 7 17.5 4.5 15 6.8 13.3 8.4 14.4 11.3 16.8 10.8 18.3 10.5 18.3 8.6 17.1 8.3 M22 12C22 7 26.5 4.5 29 6.8 30.7 8.4 29.6 11.3 27.2 10.8 25.7 10.5 25.7 8.6 26.9 8.3"
             fill="none"
             stroke={color}
             strokeWidth="1.8"
@@ -61,7 +64,7 @@ export function OrnamentBand({ color = 'currentColor', height = 22, opacity = 1 
           />
         </pattern>
       </defs>
-      <rect width="240" height="24" fill="url(#orn-band)" />
+      <rect width="100%" height="100%" fill={`url(#${id})`} />
     </svg>
   );
 }

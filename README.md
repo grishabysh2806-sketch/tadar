@@ -13,9 +13,11 @@ npm run preview    # просмотр сборки: http://localhost:4173
 
 Сборка в `dist/` — статические файлы с относительными путями: их можно выложить на GitHub Pages, Netlify, Vercel или любой хостинг. Маршрутизация через `#/…`, поэтому настройка сервера не нужна. На HTTPS приложение ставится на телефон как PWA и работает офлайн.
 
-### GitHub Pages
+### Vercel и GitHub Pages
 
-В репозитории есть workflow `.github/workflows/deploy.yml`: каждый push в `main` собирает приложение и публикует его. Один раз включите Pages: **Settings → Pages → Build and deployment → Source: GitHub Actions**, затем перезапустите workflow во вкладке **Actions**. Адрес будет вида `https://<пользователь>.github.io/tadar/` — его удобно превратить в QR-код для презентации.
+Vercel определяет Vite сам: подключите репозиторий, и каждый push в `main` будет публиковаться автоматически.
+
+Для GitHub Pages есть workflow `.github/workflows/deploy.yml` с ручным запуском. Включите **Settings → Pages → Build and deployment → Source: GitHub Actions** и запустите workflow во вкладке **Actions**. Адрес будет вида `https://<пользователь>.github.io/tadar/`.
 
 ### Страница в claude.ai
 

@@ -70,13 +70,16 @@
   color: var(--blue-dd);
   box-shadow: 0 2px 0 var(--line-2);
 }
+/* Большие переключатели — сетка: на узком экране по две кнопки в ряд, длинные подписи не вылезают */
 .seg.big {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
 }
 .seg.big button {
-  flex: 1;
-  min-width: 90px;
+  min-width: 0;
+  padding: 10px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 .stat-tile {
   display: flex;
@@ -1079,16 +1082,21 @@
   gap: 18px;
   padding: 10px 0 6px;
 }
-.ph-ring {
-  position: absolute;
-  left: -33px;
-  top: -23px;
-  opacity: 0.8;
-  animation: spin 80s linear infinite;
-}
+/* Кольцо орнамента концентрично аватару: линия кольца идёт по его краю, мотивы — наружу */
 .ph-avatar {
   position: relative;
   z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 152px;
+  height: 152px;
+  flex: none;
+}
+.ph-ring {
+  position: absolute;
+  inset: 0;
+  opacity: 0.75;
+  animation: spin 80s linear infinite;
 }
 .ph-info {
   position: relative;
@@ -2140,4 +2148,10 @@
   background: var(--red-soft);
   font-weight: 700;
   margin-top: 16px;
+}
+@media (max-width: 560px) {
+  .th-bg::after,
+  .ah-bg::after {
+    background: linear-gradient(180deg, rgba(5, 18, 42, 0.86) 0%, rgba(5, 18, 42, 0.55) 55%, rgba(5, 18, 42, 0.1) 85%);
+  }
 }
