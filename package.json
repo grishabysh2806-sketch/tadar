@@ -1,0 +1,27 @@
+{
+  "name": "tadar",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Тадар — игровое приложение для изучения шорского языка",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "artifact": "npm run build && node scripts/artifact.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/nunito": "^5.3.0",
+    "qrcode-generator": "^2.0.4",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2"
+  }
+}

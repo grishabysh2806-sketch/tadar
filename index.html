@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Тадар</title>
+    <meta name="description" content="Тадар — игровое приложение для изучения шорского языка: уроки по 5 минут, эпос кай, «Голоса старших», режимы «Класс» и «Путешественник»." />
+    <meta name="theme-color" content="#139FE0" />
+    <link rel="icon" type="image/png" href="icons/favicon-64.png" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Тадар" />
+    <script>
+      // Тема до загрузки приложения — без «вспышки» светлого фона.
+      // Если просмотрщик (claude.ai) уже выставил data-theme, запоминаем его выбор.
+      (function () {
+        var root = document.documentElement;
+        window.__hostTheme = root.getAttribute('data-theme');
+        try {
+          if (window.top !== window) root.classList.add('in-frame');
+        } catch (e) {
+          root.classList.add('in-frame');
+        }
+        var t = 'system';
+        try {
+          var st = JSON.parse(localStorage.getItem('tadar.state.v1') || 'null');
+          t = (st && st.settings && st.settings.theme) || 'system';
+        } catch (e) {}
+        var sys = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var dark = t === 'dark' || (t === 'system' && (window.__hostTheme ? window.__hostTheme === 'dark' : sys));
+        root.setAttribute('data-theme', dark ? 'dark' : 'light');
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>Для работы «Тадара» включите JavaScript.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
