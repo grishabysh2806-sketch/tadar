@@ -14,7 +14,7 @@ import { sfx } from '../audio/engine';
 import { PageHead } from '../layout/Layout';
 import { saveFile } from '../lib/platform';
 import { Pic } from '../ui/Pic';
-import { net, serverOn, errorText } from '../net/client';
+import { net, useServer, errorText } from '../net/client';
 import {
   approveRecording,
   loadCommunityVoices,
@@ -43,6 +43,7 @@ export default function Voices() {
   const n = net.use();
   const vs = voicesNet.use();
   const online = n.status === 'online';
+  const serverOn = useServer();
 
   useEffect(() => {
     const load = () => {
@@ -200,6 +201,7 @@ const STATUS: Record<NonNullable<Recording['remoteStatus']>, [string, string]> =
 };
 
 function RecRow({ r, online }: { r: Recording; online: boolean }) {
+  const serverOn = useServer();
   const [url] = useState(() => URL.createObjectURL(r.blob));
   const [ask, setAsk] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -346,6 +348,7 @@ function RecorderModal({ item, onClose }: { item: Item | null; onClose: () => vo
   const [place, setPlace] = useState(() => localStorage.getItem('tadar.place') ?? '');
   const [share, setShare] = useState(() => localStorage.getItem('tadar.share') !== '0');
   const n = net.use();
+  const serverOn = useServer();
   const recRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);

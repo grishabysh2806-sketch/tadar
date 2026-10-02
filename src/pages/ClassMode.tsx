@@ -7,7 +7,7 @@ import { Avatar, Mascot, Modal, toast, ShorText } from '../ui/kit';
 import { navigate } from '../lib/router';
 import { addDays, dayKey, fmtDate, rng, cx, plural, daysBetween } from '../lib/util';
 import { PageHead } from '../layout/Layout';
-import { serverOn } from '../net/client';
+import { useServer } from '../net/client';
 import { QR, ClassPitch, NewTaskModal, joinUrl as makeJoinUrl, toCsv, copyTable, saveTable } from './ClassParts';
 import { TeacherOnline, StudentOnline } from './ClassOnline';
 import { Pic } from '../ui/Pic';
@@ -58,6 +58,7 @@ function demoStudents(cls: ClassRoom): Student[] {
 export default function ClassMode() {
   const s = useStore((x) => x);
   const role = s.cls.role;
+  const server = useServer();
 
   useEffect(() => {
     let pending = false;
@@ -105,11 +106,11 @@ export default function ClassMode() {
             <small>Вступлю в класс по коду учителя и буду выполнять задания</small>
           </button>
         </div>
-        <ClassPitch online={serverOn} />
+        <ClassPitch online={server} />
       </div>
     );
   }
-  if (serverOn) return role === 'teacher' ? <TeacherOnline /> : <StudentOnline />;
+  if (server) return role === 'teacher' ? <TeacherOnline /> : <StudentOnline />;
   return role === 'teacher' ? <Teacher /> : <StudentView />;
 }
 

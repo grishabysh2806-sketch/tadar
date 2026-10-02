@@ -4,7 +4,7 @@ import { Modal, Mascot, Avatar } from '../ui/kit';
 import { navigate, useRoute } from '../lib/router';
 import { useStore, heartsNow, nextHeartIn, streakNow, xpToday, MAX_HEARTS } from '../state/store';
 import { LEAGUES, leagueBoard, leagueZones, weekXp, ensureQuests, questDef, practiceAvailable } from '../state/game';
-import { net, serverOn } from '../net/client';
+import { net, useServer } from '../net/client';
 import { leagueNet, refreshBoardIfOld } from '../net/league';
 import { setState } from '../state/store';
 import { cx, dayKey, addDays, plural, weekStart } from '../lib/util';
@@ -289,10 +289,11 @@ function useLeaguePlace() {
   const n = net.use();
   const lgNet = leagueNet.use();
   const myXp = weekXp(s);
+  const server = useServer();
   useEffect(() => {
-    if (serverOn && n.status === 'online' && myXp > 0) refreshBoardIfOld();
-  }, [n.status, myXp]);
-  if (!serverOn) {
+    if (server && n.status === 'online' && myXp > 0) refreshBoardIfOld();
+  }, [server, n.status, myXp]);
+  if (!server) {
     const board = leagueBoard(s);
     const rank = board.findIndex((r) => r.me) + 1;
     return { rank, size: board.length, xp: board[rank - 1].xp };

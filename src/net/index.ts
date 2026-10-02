@@ -9,6 +9,7 @@ import { api, check, getClient, net, serverOn, setOfflineHandler } from './clien
 import { pullProgress, startSync, stopSync, syncNow } from './sync';
 import { loadBoard, resetLeague, settleOnline } from './league';
 import { refreshStudentClass } from './classes';
+import { settleLeague } from '../state/game';
 import { loadCommunityVoices, restoreCommunityVoices } from './voices';
 
 export { serverOn, net } from './client';
@@ -26,18 +27,31 @@ function markOffline() {
   retryMs = Math.min(retryMs * 2, 5 * 60000);
 }
 
+/** Гостевой вход выключен в Supabase: живём на устройстве, проверяем раз в 5 минут. */
+function guestsDisabled() {
+  net.set({ status: 'disabled' });
+  settleLeague();
+  window.clearTimeout(retryTimer);
+  retryTimer = window.setTimeout(() => void signInGuest(), 5 * 60000);
+}
+
 async function signInGuest() {
   if (guestBusy || leaving) return;
   guestBusy = true;
-  net.set({ status: 'connecting' });
+  // при повторной проверке не мигаем «Подключаемся…»
+  if (net.get().status !== 'disabled') net.set({ status: 'connecting' });
   try {
     const sb = await getClient();
     if (!sb) throw new Error('offline');
     const { error } = await sb.auth.signInAnonymously();
-    if (error) throw error;
+    if (error) {
+      if ((error as { code?: string }).code === 'anonymous_provider_disabled') return guestsDisabled();
+      throw error;
+    }
     // дальше — onAuthStateChange(SIGNED_IN)
   } catch {
-    markOffline();
+    if (net.get().status === 'disabled') guestsDisabled();
+    else markOffline();
   } finally {
     guestBusy = false;
   }
@@ -90,7 +104,7 @@ async function onAuth(event: AuthChangeEvent, session: Session | null) {
 
 async function reconnect() {
   const st = net.get();
-  if (st.status !== 'offline' && st.status !== 'wait') return;
+  if (st.status !== 'offline' && st.status !== 'wait' && st.status !== 'disabled') return;
   const sb = await getClient();
   if (!sb) return markOffline();
   const { data } = await sb.auth.getSession();

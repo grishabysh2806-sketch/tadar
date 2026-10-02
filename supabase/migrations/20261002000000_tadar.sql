@@ -430,7 +430,7 @@ language sql security definer set search_path = public stable as $$
   ) from public.recordings;
 $$;
 
-grant execute on function public.voices_stats() to anon, authenticated;
+grant execute on function public.voices_stats() to authenticated;
 
 -- Хранилище аудио: публичное чтение (имена файлов — случайные UUID),
 -- загрузка только в свою папку, лимит 400 КБ на файл
@@ -456,6 +456,32 @@ drop policy if exists "voices: удаление своих" on storage.objects;
 create policy "voices: удаление своих" on storage.objects
   for delete to authenticated
   using (bucket_id = 'voices' and ((storage.foldername(name))[1] = (select auth.uid())::text or public.is_moderator()));
+
+-- ── Права на функции: анонимным — ничего, триггерные — не вызвать ─────
+-- Supabase по умолчанию разрешает функции схемы public всем ролям API.
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
+revoke execute on function public.recordings_limit() from public, anon, authenticated;
+revoke execute on function public.profiles_guard() from public, anon, authenticated;
+revoke execute on function public.league_guard() from public, anon, authenticated;
+revoke execute on function public.league_join(date, smallint) from public, anon;
+revoke execute on function public.class_join(text) from public, anon;
+revoke execute on function public.class_dashboard(uuid, date) from public, anon;
+revoke execute on function public.class_board(uuid, date) from public, anon;
+revoke execute on function public.voices_stats() from public, anon;
+revoke execute on function public.is_moderator() from public, anon;
+revoke execute on function public.is_class_teacher(uuid) from public, anon;
+revoke execute on function public.is_class_member(uuid) from public, anon;
+revoke execute on function public.teaches_user(uuid) from public, anon;
+-- вызовы приложения и проверки внутри политик RLS — для вошедших
+grant execute on function
+  public.league_join(date, smallint), public.class_join(text), public.class_dashboard(uuid, date),
+  public.class_board(uuid, date), public.voices_stats(), public.is_moderator(),
+  public.is_class_teacher(uuid), public.is_class_member(uuid), public.teaches_user(uuid)
+  to authenticated;
+
+-- Индексы под внешние ключи: классы учителя и удаление аккаунта
+create index if not exists classes_teacher_idx on public.classes (teacher_id);
+create index if not exists league_members_user_idx on public.league_members (user_id);
 
 -- ── Realtime: таблица лиги обновляется у всех участников группы ─────
 do $$

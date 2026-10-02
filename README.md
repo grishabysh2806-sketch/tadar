@@ -25,11 +25,11 @@ Vercel определяет Vite сам: подключите репозитор
 
 1. Создайте проект на [supabase.com](https://supabase.com) (бесплатный тариф подходит).
 2. **SQL Editor** → вставьте файл [`supabase/migrations/20261002000000_tadar.sql`](supabase/migrations/20261002000000_tadar.sql) целиком → **Run**. Скрипт можно запускать повторно.
-3. **Authentication → Sign In / Providers** → включите **Allow anonymous sign-ins**.
+3. **Authentication → Sign In / Providers** → включите **Allow anonymous sign-ins** и нажмите **Save changes**. Пока гостевой вход выключен, приложение работает на устройстве и раз в 5 минут проверяет сервер снова — включённый вход подхватится сам.
 4. **Authentication → Rate Limits** → поднимите лимит гостевых входов (по умолчанию 30 в час с одного IP), иначе класс из одной школьной сети не войдёт разом. Хватит 300.
 5. **Authentication → URL Configuration** → **Site URL**: адрес сайта, например `https://tadar-sooty.vercel.app`.
 6. Для входа по почте: **Authentication → Emails → Templates** — в шаблоны **Magic Link** и **Change Email Address** добавьте код `{{ .Token }}` (приложение просит ввести код из письма; ссылка из письма тоже работает). Встроенная почта Supabase отправляет всего несколько писем в час — для класса подключите свой SMTP (**Authentication → Emails → SMTP Settings**, подойдёт бесплатный тариф Resend или Brevo).
-7. **Project Settings → API Keys**: скопируйте Project URL и публичный ключ (anon / publishable). В Vercel: **Settings → Environment Variables** → `VITE_SUPABASE_URL` и `VITE_SUPABASE_ANON_KEY` → **Redeploy**. Для локального запуска — файл `.env.local` по образцу `.env.example`.
+7. Адрес и публичный ключ проекта «tadar» уже прописаны в `src/net/client.ts` — публичный (publishable) ключ рассчитан на браузер, данные защищает RLS. Для другого проекта задайте `VITE_SUPABASE_URL` и `VITE_SUPABASE_ANON_KEY` (Vercel: **Settings → Environment Variables**, локально — `.env.local` по образцу `.env.example`); пустые значения отключают сервер.
 8. Модераторы «Голосов старших» (носитель языка, преподаватель): в приложении **Настройки → Аккаунт → ID аккаунта → Копировать**, затем в SQL Editor:
    ```sql
    update public.profiles set role = 'moderator' where id = 'вставьте-id';

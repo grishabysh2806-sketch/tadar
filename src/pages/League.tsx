@@ -6,7 +6,7 @@ import { Avatar, Modal, Mascot, Confetti, toast } from '../ui/kit';
 import { weekStart, addDays, parseDay, plural, cx, DAY } from '../lib/util';
 import { navigate } from '../lib/router';
 import { copyText } from '../lib/platform';
-import { net, serverOn } from '../net/client';
+import { net, useServer } from '../net/client';
 import { leagueNet, watchBoard } from '../net/league';
 import { retryNow } from '../net';
 
@@ -153,6 +153,7 @@ export default function League() {
     return () => clearInterval(t);
   }, []);
   const result = s.league.result && !s.league.result.seen ? s.league.result : null;
+  const server = useServer();
   const seen = () =>
     setState((d) => {
       if (d.league.result) d.league.result.seen = true;
@@ -170,11 +171,11 @@ export default function League() {
         </div>
         <h1>{lg.ru}</h1>
         <p className="muted">
-          «{lg.name}» · Неделя закончится через {timeLeft()}. {serverOn ? 'Лучшие в группе поднимутся в следующую лигу.' : 'Топ-5 поднимутся в следующую лигу.'}
+          «{lg.name}» · Неделя закончится через {timeLeft()}. {server ? 'Лучшие в группе поднимутся в следующую лигу.' : 'Топ-5 поднимутся в следующую лигу.'}
         </p>
       </section>
 
-      {serverOn ? <OnlineBoard /> : <DemoBoard />}
+      {server ? <OnlineBoard /> : <DemoBoard />}
 
       <Modal open={!!result} onClose={seen}>
         {result && (

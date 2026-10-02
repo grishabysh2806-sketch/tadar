@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { setState, useStore, type Mode } from '../state/store';
 import { Mascot, MASCOT_NAME, Modal } from '../ui/kit';
-import { serverOn } from '../net/client';
+import { useServer } from '../net/client';
 import { EmailFlow } from './Account';
 import { Pic } from '../ui/Pic';
 import { Icon } from '../ui/Icon';
@@ -40,6 +40,7 @@ export default function Onboarding() {
   const [mode, setMode] = useState<Mode>(st.mode);
   const [goal, setGoal] = useState(20);
   const [login, setLogin] = useState(false);
+  const server = useServer();
   const motiveDef = MOTIVES.find((m) => m.id === motive);
 
   const go = (n: number) => {
@@ -84,7 +85,7 @@ export default function Onboarding() {
             <button className="btn outline-white block" onClick={() => navigate('about')}>
               О проекте «Тадар»
             </button>
-            {serverOn && (
+            {server && (
               <button className="btn text splash-login" onClick={() => setLogin(true)}>
                 Уже занимались? Войти по почте
               </button>

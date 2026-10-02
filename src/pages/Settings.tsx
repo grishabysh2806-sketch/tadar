@@ -8,7 +8,7 @@ import { navigate } from '../lib/router';
 import { PageHead } from '../layout/Layout';
 import { cx } from '../lib/util';
 import { sfx } from '../audio/engine';
-import { serverOn } from '../net/client';
+import { useServer } from '../net/client';
 import { AccountSection } from './Account';
 
 export default function Settings() {
@@ -26,6 +26,7 @@ export default function Settings() {
     });
   const current = pickVoice();
   const cloud = useSyncExternalStore(onCloudStatus, cloudStatus);
+  const server = useServer();
 
   return (
     <div className="page settings">
@@ -139,7 +140,7 @@ export default function Settings() {
         </div>
       </section>
 
-      {serverOn ? (
+      {server ? (
         <AccountSection />
       ) : (
         <section className="set-group card">
@@ -190,7 +191,7 @@ export default function Settings() {
       <Modal open={reset} onClose={() => setReset(false)}>
         <h2>Сбросить прогресс?</h2>
         <p className="muted" style={{ marginBottom: 16 }}>
-          Опыт, серия, уроки и достижения обнулятся{serverOn ? ' — и на этом устройстве, и в аккаунте' : ''}. Записи «Голосов старших» останутся.
+          Опыт, серия, уроки и достижения обнулятся{server ? ' — и на этом устройстве, и в аккаунте' : ''}. Записи «Голосов старших» останутся.
         </p>
         <div className="row">
           <button className="btn ghost grow" onClick={() => setReset(false)}>

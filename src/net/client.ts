@@ -8,11 +8,19 @@
 import { useSyncExternalStore } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+/*
+ * Проект Supabase «tadar». Публичный ключ (publishable) предназначен для браузера:
+ * данные защищены правилами RLS в базе. Для другого проекта — переменные
+ * VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY (или пустые, чтобы отключить сервер).
+ */
+const PROJECT_URL = 'https://ccdoomaexjdkyglfdvwb.supabase.co';
+const PROJECT_KEY = 'sb_publishable_brzJURyEftzCGqvbBpZFHg_L9wS0ZNE';
+
 const env = import.meta.env;
-const URL_ = String(env.VITE_SUPABASE_URL ?? '')
+const URL_ = String(env.VITE_SUPABASE_URL ?? PROJECT_URL)
   .trim()
   .replace(/\/+$/, '');
-const KEY = String(env.VITE_SUPABASE_ANON_KEY ?? env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '').trim();
+const KEY = String(env.VITE_SUPABASE_ANON_KEY ?? env.VITE_SUPABASE_PUBLISHABLE_KEY ?? PROJECT_KEY).trim();
 
 function framed() {
   try {
@@ -52,9 +60,11 @@ export function store<T extends object>(init: T) {
 
 /**
  * off — сервер не настроен; wait — ждём окончания знакомства (аккаунт ещё не нужен);
- * connecting — входим; online — всё работает; offline — нет связи, повторим позже.
+ * connecting — входим; online — всё работает; offline — нет связи, повторим позже;
+ * disabled — сервер не принимает гостевые аккаунты (выключено в Supabase):
+ * приложение работает на устройстве и время от времени проверяет снова.
  */
-export type NetStatus = 'off' | 'wait' | 'connecting' | 'online' | 'offline';
+export type NetStatus = 'off' | 'wait' | 'connecting' | 'online' | 'offline' | 'disabled';
 
 export interface Net {
   status: NetStatus;
@@ -65,6 +75,15 @@ export interface Net {
 }
 
 export const net = store<Net>({ status: serverOn ? 'wait' : 'off', uid: null, email: null, anonymous: true, moderator: false });
+
+/** Сервер работает для приложения: настроен и принимает аккаунты. */
+export const serverActive = () => serverOn && net.get().status !== 'disabled';
+
+/** То же для компонентов: при смене статуса страница перерисуется. */
+export function useServer() {
+  const n = net.use();
+  return serverOn && n.status !== 'disabled';
+}
 
 /* ── Клиент ───────────────────────────────────────────────────────── */
 
