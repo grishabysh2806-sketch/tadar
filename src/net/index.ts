@@ -9,12 +9,34 @@ import { api, check, getClient, net, serverOn, setOfflineHandler } from './clien
 import { pullProgress, startSync, stopSync, syncNow } from './sync';
 import { loadBoard, resetLeague, settleOnline } from './league';
 import { refreshStudentClass } from './classes';
-import { settleLeague } from '../state/game';
+import { applyGrants, settleLeague } from '../state/game';
+import { toast } from '../ui/kit';
 import { loadCommunityVoices, restoreCommunityVoices } from './voices';
 
 export { serverOn, net } from './client';
 
 let started = false;
+let grantsAt = 0;
+
+/** Применить подарки администратора и сообщить о них. */
+function grantsGiven(raw: unknown) {
+  grantsAt = Date.now();
+  const opened = applyGrants(raw);
+  if (opened.length) toast('Вам открыт эпос кай!', { icon: '🪕', sub: opened.length > 1 ? 'Все фрагменты сказаний — в разделе «Эпос кай»' : 'Новый фрагмент — в разделе «Эпос кай»', ms: 6000 });
+}
+
+/** Вернулись во вкладку — проверить, не появилось ли подарков (не чаще раза в минуту). */
+async function refreshGrants() {
+  if (net.get().status !== 'online' || Date.now() - grantsAt < 60000) return;
+  grantsAt = Date.now();
+  try {
+    const { sb, uid } = await api();
+    const prof = check(await sb.from('profiles').select('grants').eq('id', uid).maybeSingle()) as { grants: unknown } | null;
+    grantsGiven(prof?.grants);
+  } catch {
+    /* повторим в следующий раз */
+  }
+}
 let retryTimer = 0;
 let retryMs = 15000;
 let guestBusy = false;
@@ -68,8 +90,9 @@ async function connect() {
     // почту могли подтвердить ссылкой из письма на другом устройстве — берём свежие данные
     const fresh = await sb.auth.getUser();
     if (fresh.data.user) net.set({ email: fresh.data.user.email || null, anonymous: !!fresh.data.user.is_anonymous });
-    const prof = check(await sb.from('profiles').select('role').eq('id', uid).maybeSingle()) as { role: string } | null;
+    const prof = check(await sb.from('profiles').select('role, grants').eq('id', uid).maybeSingle()) as { role: string; grants: unknown } | null;
     net.set({ moderator: prof?.role === 'moderator' });
+    grantsGiven(prof?.grants);
     await settleOnline();
     await syncNow();
     void loadBoard().catch(() => undefined);
@@ -144,6 +167,7 @@ export async function startBackend() {
     if (document.visibilityState === 'hidden') {
       if (net.get().status === 'online') void syncNow();
     } else if (net.get().status === 'offline') void reconnect();
+    else void refreshGrants();
   });
 }
 

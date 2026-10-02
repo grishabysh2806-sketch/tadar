@@ -495,6 +495,28 @@ export function checkAchievements(d: State) {
   for (const a of ACHIEVEMENTS) if (a.check && !d.ach[a.id] && a.check(d)) grant(d, a.id);
 }
 
+/**
+ * Подарки администратора (поле grants в профиле на сервере): {"epics": "all"}
+ * или {"epics": ["e1", …]} открывают фрагменты эпоса без прохождения разделов.
+ * Возвращает id фрагментов, открытых сейчас.
+ */
+export function applyGrants(raw: unknown): string[] {
+  const grants = (raw && typeof raw === 'object' ? raw : {}) as { epics?: unknown };
+  const ids =
+    grants.epics === 'all'
+      ? EPICS.map((e) => e.id)
+      : Array.isArray(grants.epics)
+        ? EPICS.map((e) => e.id).filter((id) => (grants.epics as unknown[]).includes(id))
+        : [];
+  const s = getState();
+  const fresh = ids.filter((id) => !s.epics[id]);
+  if (fresh.length)
+    setState((d) => {
+      for (const id of fresh) d.epics[id] = { unlocked: Date.now(), plays: 0 };
+    });
+  return fresh;
+}
+
 /** Для действий вне уроков: возвращает новые достижения. */
 export function runAchievementCheck(): string[] {
   const before = new Set(Object.keys(getState().ach));

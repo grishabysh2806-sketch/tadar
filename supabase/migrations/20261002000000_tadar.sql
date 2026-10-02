@@ -23,6 +23,12 @@ create table if not exists public.profiles (
 
 alter table public.profiles enable row level security;
 
+-- Подарки от администратора: открытый контент отдельным людям, например
+-- {"epics": "all"} или {"epics": ["e1", "e2"]}. Меняется только в панели Supabase.
+alter table public.profiles add column if not exists grants jsonb not null default '{}'::jsonb;
+alter table public.profiles drop constraint if exists profiles_grants_size;
+alter table public.profiles add constraint profiles_grants_size check (pg_column_size(grants) < 2000);
+
 -- Аватарок стало больше: маскот Пӧрӱ в образах и символы Шории (запас до 32)
 alter table public.profiles drop constraint if exists profiles_avatar_check;
 alter table public.profiles add constraint profiles_avatar_check check (avatar between 0 and 31);
@@ -39,16 +45,22 @@ drop policy if exists "profiles: меняет владелец" on public.profil
 create policy "profiles: меняет владелец" on public.profiles
   for update to authenticated using (id = (select auth.uid())) with check (id = (select auth.uid()));
 
--- Роль модератора назначается только в панели Supabase (Table Editor / SQL),
--- из приложения поменять её нельзя.
+-- Роль модератора и подарки назначаются только в панели Supabase (Table Editor / SQL),
+-- из приложения поменять их нельзя.
 create or replace function public.profiles_guard() returns trigger
 language plpgsql set search_path = public as $$
 begin
   if current_user = 'authenticated' then
     if tg_op = 'INSERT' then
       new.role := 'user';
-    elsif new.role is distinct from old.role then
-      new.role := old.role;
+      new.grants := '{}'::jsonb;
+    else
+      if new.role is distinct from old.role then
+        new.role := old.role;
+      end if;
+      if new.grants is distinct from old.grants then
+        new.grants := old.grants;
+      end if;
     end if;
   end if;
   return new;
