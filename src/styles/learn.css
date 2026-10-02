@@ -86,7 +86,8 @@
   z-index: 2;
 }
 .path-row.raised {
-  z-index: 10;
+  /* открытая карточка урока — над прилипающими шапками разделов (20) и плавающими кнопками (25) */
+  z-index: 26;
 }
 .path-row.cur-row {
   margin-top: 34px;
@@ -242,6 +243,9 @@
   top: calc(100% + 16px);
   left: 50%;
   z-index: 30;
+  /* при автопрокрутке карточка не прячется под верхней панелью и нижним меню */
+  scroll-margin-top: 150px;
+  scroll-margin-bottom: calc(100px + env(safe-area-inset-bottom));
   width: min(310px, calc(100vw - 32px));
   transform: translateX(calc(-50% - var(--off, 0px)));
   padding: 16px;

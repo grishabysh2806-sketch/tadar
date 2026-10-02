@@ -48,6 +48,13 @@ export default function Learn() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // открытая карточка урока целиком в кадре: внизу её не закрывают меню и шапка следующего раздела
+  useEffect(() => {
+    if (!open) return;
+    const t = window.setTimeout(() => document.querySelector('.node-pop')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 60);
+    return () => window.clearTimeout(t);
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => {
