@@ -215,13 +215,69 @@ export function speakable(text: string, lang: string) {
 }
 
 let current: HTMLAudioElement | null = null;
+let cancelledAt = 0;
 
 export function stopSpeech() {
   if (current) {
     current.pause();
     current = null;
   }
-  if (ttsSupported()) speechSynthesis.cancel();
+  if (ttsSupported()) {
+    if (speechSynthesis.speaking || speechSynthesis.pending) cancelledAt = Date.now();
+    speechSynthesis.cancel();
+  }
+}
+
+/** iOS разрешает синтез речи только после касания — «будим» его пустой фразой. */
+let speechUnlocked = false;
+export function unlockSpeech() {
+  if (speechUnlocked || !ttsSupported()) return;
+  speechUnlocked = true;
+  try {
+    const u = new SpeechSynthesisUtterance(' ');
+    u.volume = 0;
+    speechSynthesis.speak(u);
+  } catch {
+    /* noop */
+  }
+}
+
+/* ── Медленно: по слогам, как произносит учитель ───────────────── */
+
+const VOWELS = /[аеёиоӧуӱыэюяАЕЁИОӦУӰЫЭЮЯ]/;
+
+/** Слоги шорского слова: согласный перед гласным начинает слог (э-зен, чат-чаң, қай-де). */
+export function syllables(word: string): string[] {
+  const ch = [...word];
+  const vow = ch.map((c, i) => (VOWELS.test(c) ? i : -1)).filter((i) => i >= 0);
+  if (vow.length < 2) return [word];
+  const cuts: number[] = [];
+  for (let k = 1; k < vow.length; k++) {
+    const between = ch.slice(vow[k - 1] + 1, vow[k]).filter((c) => /\p{L}/u.test(c) && !/[ьъЬЪ]/.test(c)).length;
+    let cut = vow[k];
+    // один согласный уходит к следующему слогу, из нескольких — только последний
+    if (between >= 1) {
+      cut = vow[k] - 1;
+      while (cut > vow[k - 1] && /[ьъЬЪ]/.test(ch[cut])) cut--;
+      if (/[ьъЬЪ]/.test(ch[cut + 1] ?? '')) cut++;
+    }
+    cuts.push(cut);
+  }
+  const out: string[] = [];
+  let start = 0;
+  for (const c of cuts) {
+    out.push(ch.slice(start, c).join(''));
+    start = c;
+  }
+  out.push(ch.slice(start).join(''));
+  return out.filter(Boolean);
+}
+
+/** Текст для медленного чтения: короткое — по слогам, длинную фразу — по словам. */
+export function slowText(text: string) {
+  const words = text.replace(/-/g, ' ').trim().split(/\s+/);
+  if (words.length > 2) return words.join(', ');
+  return words.map((w) => syllables(w).join(', ')).join('. ');
 }
 
 export function canSpeak() {
@@ -239,7 +295,7 @@ export function speakShor(text: string, opts: { slow?: boolean; force?: boolean 
     return new Promise((resolve) => {
       const a = new Audio(rec);
       current = a;
-      a.playbackRate = opts.slow ? 0.75 : 1;
+      a.playbackRate = opts.slow ? 0.7 : 1;
       a.onended = () => resolve();
       // файл недоступен (нет сети) — читаем синтезом
       a.onerror = () => (current === a ? speakTts(text, opts).then(resolve) : resolve());
@@ -255,26 +311,56 @@ function speakTts(text: string, opts: { slow?: boolean }): Promise<void> {
   return new Promise((resolve) => {
     const v = pickVoice();
     const lang = v?.lang ?? 'ru-RU';
-    const u = new SpeechSynthesisUtterance(speakable(text, lang));
-    if (v) u.voice = v;
-    u.lang = lang;
-    u.rate = opts.slow ? Math.max(0.4, st.rate * 0.6) : st.rate;
-    u.pitch = 1;
+    // голоса почти не замедляются ниже ~0,5, поэтому медленно — ещё и по слогам
+    const say = speakable(opts.slow ? slowText(text) : text, lang);
+    const rate = opts.slow ? Math.max(0.5, st.rate * 0.7) : st.rate;
     let done = false;
+    let started = false;
+    let tries = 0;
+    let retrying = false;
     const fin = () => {
       if (!done) {
         done = true;
         resolve();
       }
     };
-    u.onend = fin;
-    u.onerror = fin;
-    setTimeout(fin, 6000);
-    try {
-      speechSynthesis.speak(u);
-    } catch {
-      fin();
-    }
+    const go = () => {
+      if (done) return;
+      tries++;
+      retrying = false;
+      const u = new SpeechSynthesisUtterance(say);
+      if (v) u.voice = v;
+      u.lang = lang;
+      u.rate = rate;
+      u.pitch = 1;
+      u.onstart = () => {
+        started = true;
+      };
+      u.onend = fin;
+      u.onerror = () => {
+        if (!retrying) fin();
+      };
+      try {
+        speechSynthesis.resume();
+        speechSynthesis.speak(u);
+      } catch {
+        fin();
+        return;
+      }
+      // движок молчит (бывает в Chrome после прерывания и на iOS) — пробуем ещё раз
+      setTimeout(() => {
+        if (done || started) return;
+        if (tries >= 2) return fin();
+        retrying = true;
+        speechSynthesis.cancel();
+        setTimeout(go, 150);
+      }, 1500);
+    };
+    // сразу после cancel() браузеры теряют новую фразу — даём движку мгновение
+    const wait = Math.max(0, cancelledAt + 180 - Date.now());
+    if (wait) setTimeout(go, wait);
+    else go();
+    setTimeout(fin, Math.max(7000, (say.length * 160) / rate));
   });
 }
 

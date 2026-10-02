@@ -10,6 +10,7 @@ import { PageHead } from '../layout/Layout';
 import { serverOn } from '../net/client';
 import { QR, ClassPitch, NewTaskModal, joinUrl as makeJoinUrl, toCsv, copyTable, saveTable } from './ClassParts';
 import { TeacherOnline, StudentOnline } from './ClassOnline';
+import { Pic } from '../ui/Pic';
 
 const CODE_CHARS = 'АБВГДЕКМНПРСТ23456789';
 function makeCode() {
@@ -82,7 +83,9 @@ export default function ClassMode() {
               })
             }
           >
-            <span className="role-emoji">🧑‍🏫</span>
+            <span className="role-emoji">
+              <Pic e="🧑‍🏫" size={72} />
+            </span>
             <b>Я учитель</b>
             <small>Создам класс, раздам задания и увижу прогресс учеников</small>
           </button>
@@ -95,7 +98,9 @@ export default function ClassMode() {
               })
             }
           >
-            <span className="role-emoji">🧑‍🎓</span>
+            <span className="role-emoji">
+              <Pic e="🧑‍🎓" size={72} />
+            </span>
             <b>Я ученик</b>
             <small>Вступлю в класс по коду учителя и буду выполнять задания</small>
           </button>

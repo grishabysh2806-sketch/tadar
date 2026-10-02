@@ -7,7 +7,7 @@ import './styles/learn.css';
 import './styles/lesson.css';
 import './styles/pages.css';
 import App from './App';
-import { initVoices } from './audio/voice';
+import { initVoices, unlockSpeech } from './audio/voice';
 import { unlockAudio } from './audio/engine';
 import { connectCloud, flushCloud } from './lib/cloud';
 import { startBackend } from './net';
@@ -19,7 +19,11 @@ if (import.meta.env.DEV) {
   import('./state/game').then((m) => ((window as unknown as Record<string, unknown>).__game = m));
   import('./net/client').then((m) => ((window as unknown as Record<string, unknown>).__net = m.net));
 }
-['pointerdown', 'keydown', 'touchstart'].forEach((ev) => window.addEventListener(ev, unlockAudio, { once: true, passive: true }));
+const unlock = () => {
+  unlockAudio();
+  unlockSpeech();
+};
+['pointerdown', 'keydown', 'touchstart'].forEach((ev) => window.addEventListener(ev, unlock, { once: true, passive: true }));
 
 // PWA: офлайн-кэш только в собранной версии и вне встраиваемых окон
 if (import.meta.env.PROD && 'serviceWorker' in navigator && window.top === window && /^https?:$/.test(location.protocol)) {

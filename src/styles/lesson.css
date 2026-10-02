@@ -274,6 +274,19 @@
 .pic.emoji.lg {
   font-size: 92px;
 }
+.pic.art svg {
+  display: block;
+  width: 66px;
+  height: 66px;
+}
+.pic.art.lg svg {
+  width: 118px;
+  height: 118px;
+}
+.ru-sentence .pic.art svg {
+  width: 40px;
+  height: 40px;
+}
 .pic.num {
   font-size: 46px;
   font-weight: 900;

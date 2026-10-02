@@ -6,6 +6,7 @@ import { Modal, Confetti, CountUp, Mascot } from '../ui/kit';
 import { cx, dayKey, plural } from '../lib/util';
 import { sfx } from '../audio/engine';
 import { PageHead } from '../layout/Layout';
+import { Pic } from '../ui/Pic';
 
 function untilMidnight() {
   const d = new Date();
@@ -95,7 +96,9 @@ export default function Quests() {
           const got = s.ach[a.id];
           return (
             <div key={a.id} className={cx('ach', got ? 'got' : 'locked')}>
-              <span className="ach-icon">{a.icon}</span>
+              <span className="ach-icon">
+              <Pic e={a.icon} size={40} />
+            </span>
               <b>{a.title}</b>
               <small>{a.desc}</small>
             </div>

@@ -4,6 +4,7 @@ import { ruShow } from '../data/vocab';
 import type { Exercise } from './generate';
 import { Icon } from '../ui/Icon';
 import { Mascot, ShorText, SpeakButton } from '../ui/kit';
+import { PICS } from '../ui/pics';
 import { Motif } from '../ui/Ornament';
 import { speakShor } from '../audio/voice';
 import { sfx } from '../audio/engine';
@@ -36,6 +37,13 @@ export function Picture({ item, size = 'md' }: { item: Item; size?: 'md' | 'lg' 
     return (
       <span className={cx('pic motif', size)} aria-hidden>
         <Motif size={size === 'lg' ? 46 : 30} color="currentColor" />
+      </span>
+    );
+  const art = PICS[item.emoji];
+  if (art)
+    return (
+      <span className={cx('pic art', size)} aria-hidden>
+        <svg viewBox="0 0 48 48" focusable="false" dangerouslySetInnerHTML={{ __html: art }} />
       </span>
     );
   return (

@@ -3,6 +3,7 @@ import { setState, useStore, type Mode } from '../state/store';
 import { Mascot, MASCOT_NAME, Modal } from '../ui/kit';
 import { serverOn } from '../net/client';
 import { EmailFlow } from './Account';
+import { Pic } from '../ui/Pic';
 import { Icon } from '../ui/Icon';
 import { navigate } from '../lib/router';
 import { cx } from '../lib/util';
@@ -142,7 +143,9 @@ export default function Onboarding() {
                     sfx('select');
                   }}
                 >
-                  <span className="onb-emoji">{m.icon}</span>
+                  <span className="onb-emoji">
+                    <Pic e={m.icon} size={38} />
+                  </span>
                   <span className="opt-body">{m.title}</span>
                 </button>
               ))}

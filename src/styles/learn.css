@@ -21,6 +21,17 @@
   color: var(--uink);
   box-shadow: 0 4px 0 var(--ucd);
 }
+/* зазор над прилипшей шапкой закрыт фоном — карта уходит под неё, а не просвечивает сверху */
+.unit-banner::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  right: -12px;
+  bottom: 100%;
+  height: 24px;
+  background: var(--bg);
+  pointer-events: none;
+}
 .unit-banner h2 {
   color: inherit;
   font-size: 21px;

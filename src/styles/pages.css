@@ -2317,3 +2317,23 @@
   color: #fff;
   opacity: 0.9;
 }
+
+/* Рисованные картинки вместо эмодзи */
+.onb-emoji svg,
+.step3 span svg,
+.role-emoji svg,
+.ach-icon svg {
+  display: block;
+}
+.step3 span {
+  display: grid;
+  place-items: center;
+  height: 42px;
+}
+.role-emoji {
+  display: grid;
+  place-items: center;
+}
+.ach.locked .ach-icon svg {
+  opacity: 0.8;
+}

@@ -7,6 +7,7 @@ import { Avatar, Mascot } from '../ui/kit';
 import { navigate } from '../lib/router';
 import { cx, dayKey, fmtMonthYear, monthName, plural } from '../lib/util';
 import { OrnamentRing } from '../ui/Ornament';
+import { Pic } from '../ui/Pic';
 
 function Calendar() {
   const s = useStore((x) => x);
@@ -167,7 +168,9 @@ export default function Profile() {
       <div className="ach-grid">
         {ACHIEVEMENTS.map((a) => (
           <div key={a.id} className={cx('ach', s.ach[a.id] ? 'got' : 'locked')}>
-            <span className="ach-icon">{a.icon}</span>
+            <span className="ach-icon">
+              <Pic e={a.icon} size={40} />
+            </span>
             <b>{a.title}</b>
             <small>{a.desc}</small>
           </div>

@@ -13,6 +13,7 @@ import { normalize } from '../lib/text';
 import { sfx } from '../audio/engine';
 import { PageHead } from '../layout/Layout';
 import { saveFile } from '../lib/platform';
+import { Pic } from '../ui/Pic';
 import { net, serverOn, errorText } from '../net/client';
 import {
   approveRecording,
@@ -122,7 +123,9 @@ export default function Voices() {
           ['🔊', serverOn ? 'Слушайте все' : 'Слушайте в уроках', serverOn ? 'после проверки — в уроках у всех' : 'родной голос вместо синтеза'],
         ].map(([i, t, s]) => (
           <div key={t} className="step3">
-            <span>{i}</span>
+            <span>
+              <Pic e={i} size={40} />
+            </span>
             <b>{t}</b>
             <small>{s}</small>
           </div>

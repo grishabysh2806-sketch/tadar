@@ -4,6 +4,7 @@ import { Icon } from './Icon';
 import { splitSpecial } from '../lib/text';
 import { speakShor } from '../audio/voice';
 import { cx } from '../lib/util';
+import { Pic } from './Pic';
 
 /* ── Маскот ─────────────────────────────────────────────────── */
 
@@ -192,7 +193,7 @@ export function Toasts() {
     <div className="toasts" aria-live="polite">
       {list.map((t) => (
         <div key={t.id} className="toast">
-          <span className="t-icon">{t.icon}</span>
+          <span className="t-icon">{typeof t.icon === 'string' ? <Pic e={t.icon} size={30} /> : t.icon}</span>
           <div>
             {t.title}
             {t.sub && <small>{t.sub}</small>}

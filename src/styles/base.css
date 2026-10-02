@@ -563,6 +563,8 @@ textarea.input {
   animation: toastIn 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
 }
 .toast .t-icon {
+  display: grid;
+  place-items: center;
   font-size: 26px;
 }
 .toast small {
