@@ -128,7 +128,8 @@ export async function joinClass(code: string): Promise<ServerClass | null> {
 export async function myMemberships(): Promise<ServerClass[]> {
   const { sb, uid } = await api();
   const rows = check(
-    await sb.from('class_members').select(`joined_at, classes(${CLASS_COLS}, profiles(name))`).eq('user_id', uid).order('joined_at', { ascending: false }),
+    // у классов две связи с профилями (учитель и ученики) — нужна связь через teacher_id
+    await sb.from('class_members').select(`joined_at, classes(${CLASS_COLS}, profiles!classes_teacher_id_fkey(name))`).eq('user_id', uid).order('joined_at', { ascending: false }),
   ) as unknown as { joined_at: string; classes: (ServerClass & { profiles: { name: string } | null }) | null }[];
   return rows
     .filter((r) => r.classes)
