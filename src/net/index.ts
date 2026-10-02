@@ -89,7 +89,12 @@ async function connect() {
     const { sb, uid } = await api();
     // почту могли подтвердить ссылкой из письма на другом устройстве — берём свежие данные
     const fresh = await sb.auth.getUser();
-    if (fresh.data.user) net.set({ email: fresh.data.user.email || null, anonymous: !!fresh.data.user.is_anonymous });
+    if (fresh.data.user) {
+      net.set({ email: fresh.data.user.email || null, anonymous: !!fresh.data.user.is_anonymous });
+      // сохранённая сессия всё ещё «гостевая» — обновляем её, чтобы старая копия не всплывала
+      const stored = (await sb.auth.getSession()).data.session;
+      if (!fresh.data.user.is_anonymous && stored?.user.is_anonymous) await sb.auth.refreshSession().catch(() => undefined);
+    }
     const prof = check(await sb.from('profiles').select('role, grants').eq('id', uid).maybeSingle()) as { role: string; grants: unknown } | null;
     net.set({ moderator: prof?.role === 'moderator' });
     grantsGiven(prof?.grants);
@@ -105,8 +110,12 @@ async function connect() {
 
 async function onAuth(event: AuthChangeEvent, session: Session | null) {
   const cur = net.get();
+  // Supabase присылает и старую копию пользователя из памяти браузера (например, при
+  // возвращении во вкладку): аккаунт с почтой гостем снова стать не может
+  const anonymousNow = (s: Session) => (s.user.id === cur.uid ? cur.anonymous && !!s.user.is_anonymous : !!s.user.is_anonymous);
+  const emailNow = (s: Session) => s.user.email || (s.user.id === cur.uid ? cur.email : null);
   if (session && (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED')) {
-    net.set({ email: session.user.email || null, anonymous: !!session.user.is_anonymous });
+    net.set({ email: emailNow(session), anonymous: anonymousNow(session) });
     return;
   }
   if (!session) {
@@ -117,7 +126,7 @@ async function onAuth(event: AuthChangeEvent, session: Session | null) {
     return;
   }
   if (session.user.id === cur.uid && (cur.status === 'online' || cur.status === 'connecting')) {
-    net.set({ email: session.user.email || null, anonymous: !!session.user.is_anonymous });
+    net.set({ email: emailNow(session), anonymous: anonymousNow(session) });
     return;
   }
   if (cur.uid && cur.uid !== session.user.id) {
