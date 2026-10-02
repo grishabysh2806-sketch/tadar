@@ -4,7 +4,7 @@ import { ruShow } from '../data/vocab';
 import { epicById } from '../data/epics';
 import { generateLesson, generatePractice, exerciseItems, accepted, KIND_TITLE, type Exercise } from '../lesson/generate';
 import { IntroCard, ChooseRu, ChooseShor, PictureChoice, ListenChoice, MatchPairs, BuildSentence, TypeAnswer, ListenType, FillBlank, type Status } from '../lesson/exercises';
-import { getState, useStore, heartsNow, MAX_HEARTS, setState } from '../state/store';
+import { getState, useStore, heartsNow, MAX_HEARTS, setState, streakNow } from '../state/store';
 import { completeLesson, loseHeart, recordAnswer, weakItems, claimEpic, isLessonUnlocked, practiceAvailable, type LessonSummary } from '../state/game';
 import { checkRu, checkShor, normalize, tokens } from '../lib/text';
 import { Icon } from '../ui/Icon';
@@ -15,6 +15,7 @@ import { canSpeak, stopSpeech } from '../audio/voice';
 import { cx, fmtDuration, plural, pick } from '../lib/util';
 import { WeekFlames } from '../layout/Layout';
 import { ACHIEVEMENTS, questDef } from '../state/game';
+import { Benefits, hideSignup, isGuestNow, openSignup, signupHidden, useGuest } from './Signup';
 
 type Answer = string | number[] | undefined;
 
@@ -459,10 +460,12 @@ function LessonComplete({ summary, practice, unitId }: { summary: LessonSummary;
     const st: string[] = ['result'];
     if (summary.streakExtended) st.push('streak');
     if (summary.unitCompleted) st.push('unit');
+    if (isGuestNow() && !signupHidden('lesson')) st.push('signup');
     return st;
   }, [summary]);
   const [step, setStep] = useState(0);
   const cur = steps[step];
+  const guest = useGuest();
 
   useEffect(() => {
     if (cur === 'streak') sfx('streak');
@@ -479,6 +482,42 @@ function LessonComplete({ summary, practice, unitId }: { summary: LessonSummary;
     navigate(s.settings.mode === 'traveler' && unitId === 'u11' ? 'travel' : 'learn');
   };
   const nextStep = () => (step + 1 < steps.length ? setStep(step + 1) : exit());
+
+  // аккаунт создан (в том числе ссылкой из письма в другой вкладке) — идём дальше
+  useEffect(() => {
+    if (cur === 'signup' && !guest) nextStep();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cur, guest]);
+
+  if (cur === 'signup') {
+    const st = getState();
+    const days = streakNow(st);
+    return (
+      <div className="lesson-done signup-screen">
+        <Mascot pose="hero" size={170} anim="bob" />
+        <h1>Сохраните прогресс!</h1>
+        <p className="muted">
+          У вас уже {st.xp} {plural(st.xp, ['очко', 'очка', 'очков'])} опыта{days > 1 ? ` и ${days} ${plural(days, ['день', 'дня', 'дней'])} подряд` : ''}. Создайте аккаунт — соревнуйтесь с друзьями в лиге, а прогресс
+          останется с вами на любом устройстве.
+        </p>
+        <div className="card" style={{ width: '100%', maxWidth: 440 }}>
+          <Benefits />
+        </div>
+        <button className="btn lg block green done-btn" onClick={() => openSignup()}>
+          Создать аккаунт
+        </button>
+        <button
+          className="btn text"
+          onClick={() => {
+            hideSignup('lesson');
+            nextStep();
+          }}
+        >
+          Позже
+        </button>
+      </div>
+    );
+  }
 
   if (cur === 'streak') {
     return (

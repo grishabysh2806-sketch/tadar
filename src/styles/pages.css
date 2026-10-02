@@ -2495,3 +2495,94 @@ button.ph-avatar:focus-visible {
   font-weight: 700;
   color: var(--muted);
 }
+
+/* ── Предложение создать аккаунт ───────────────────────────── */
+.signup-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  border-color: var(--blue-line);
+  background: linear-gradient(135deg, var(--blue-soft), var(--surface) 75%);
+}
+.signup-card b {
+  display: block;
+  font-size: 17px;
+  font-weight: 900;
+  color: var(--text-strong);
+}
+.signup-card p {
+  margin: 2px 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.signup-card .grow {
+  min-width: 0;
+}
+.signup-actions {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.signup-card.compact {
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
+}
+.signup-card.compact b {
+  font-size: 15px;
+}
+.signup-card.compact p {
+  font-size: 13px;
+}
+.rail .signup-card {
+  margin-bottom: 0;
+}
+@media (min-width: 1100px) {
+  /* на компьютере предложение уже есть в правой колонке */
+  .signup-learn {
+    display: none;
+  }
+}
+.benefits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+.benefits li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 800;
+  font-size: 15px;
+}
+.benefits li svg {
+  flex: none;
+}
+.benefits.small li {
+  font-size: 13px;
+  gap: 8px;
+}
+.signup {
+  gap: 14px;
+}
+.signup-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: 30px;
+}
+.signup-head h2 {
+  margin-bottom: 2px;
+}
+.signup-head p {
+  font-size: 14px;
+  font-weight: 700;
+}
+.signup-screen p {
+  max-width: 460px;
+}

@@ -175,14 +175,14 @@ export function AccountSection() {
         (n.anonymous ? (
           <>
             <p className="muted set-hint">
-              Сейчас у вас гостевой аккаунт на этом устройстве. Привяжите почту — тогда прогресс не потеряется и его можно продолжить на телефоне и компьютере.
+              Сейчас вы занимаетесь как гость — аккаунт есть только в этом браузере. Создайте аккаунт по почте: соревнуйтесь с друзьями в лиге, а прогресс не потеряется и продолжится на телефоне и компьютере.
             </p>
             {flow ? (
               <EmailFlow mode={flow} onDone={() => setFlow(null)} onCancel={() => setFlow(null)} />
             ) : (
               <div className="row" style={{ flexWrap: 'wrap' }}>
                 <button className="btn sm" disabled={n.status !== 'online'} onClick={() => setFlow('link')}>
-                  <Icon name="lock" size={18} /> Привязать почту
+                  <Icon name="lock" size={18} /> Создать аккаунт
                 </button>
                 <button className="btn sm ghost" disabled={n.status !== 'online'} onClick={() => setFlow('login')}>
                   У меня уже есть аккаунт

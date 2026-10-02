@@ -21,6 +21,7 @@ import ClassMode from './pages/ClassMode';
 import Travel from './pages/Travel';
 import About from './pages/About';
 import Onboarding from './pages/Onboarding';
+import { SignupModal } from './pages/Signup';
 
 type HostWin = Window & { __hostTheme?: string | null };
 
@@ -146,6 +147,7 @@ export default function App() {
     <>
       {full ? page : <Layout rail={main !== 'travel' && main !== 'class'}>{page}</Layout>}
       <Toasts />
+      <SignupModal />
     </>
   );
 }

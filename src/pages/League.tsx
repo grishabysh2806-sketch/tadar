@@ -9,6 +9,7 @@ import { copyText } from '../lib/platform';
 import { net, useServer } from '../net/client';
 import { leagueNet, watchBoard } from '../net/league';
 import { retryNow } from '../net';
+import { SignupCard } from './Signup';
 
 function timeLeft() {
   const end = parseDay(addDays(weekStart(), 7)).getTime();
@@ -124,6 +125,7 @@ function OnlineBoard() {
   };
   return (
     <>
+      <SignupCard place="league" title="Соревнуйтесь с друзьями" text="Создайте аккаунт: место в лиге и прогресс сохранятся, а друзья найдут вас в таблице группы." />
       <div className="league-meta">
         <span className={cx('live-dot', lg.live && 'on')} />
         {lg.live ? 'Таблица обновляется сама' : n.status === 'offline' ? 'Нет связи — показана последняя таблица' : 'Таблица группы'}

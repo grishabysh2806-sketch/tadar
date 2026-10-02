@@ -9,6 +9,7 @@ import { navigate } from '../lib/router';
 import { cx, dayKey, fmtMonthYear, monthName, plural } from '../lib/util';
 import { OrnamentRing } from '../ui/Ornament';
 import { Pic } from '../ui/Pic';
+import { SignupCard } from './Signup';
 
 function Calendar() {
   const s = useStore((x) => x);
@@ -110,6 +111,8 @@ export default function Profile() {
           </div>
         </div>
       </section>
+
+      <SignupCard place="profile" title="Создайте профиль" text="Сейчас вы занимаетесь как гость. С аккаунтом опыт, серия и место в лиге не потеряются — на любом устройстве." />
 
       <h2 className="sec-title">Статистика</h2>
       <div className="stat-grid">

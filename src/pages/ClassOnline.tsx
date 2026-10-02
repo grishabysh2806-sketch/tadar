@@ -30,6 +30,7 @@ import {
   type StudentRow,
 } from '../net/classes';
 import { QR, ClassPitch, NewTaskModal, joinUrl, toCsv, copyTable, saveTable } from './ClassParts';
+import { SignupCard } from './Signup';
 
 const SEL_KEY = 'tadar.class.sel';
 
@@ -595,6 +596,7 @@ export function StudentOnline() {
         )}
       </PageHead>
       {n.status === 'offline' && <p className="muted net-note">Нет связи — показаны последние задания.</p>}
+      <SignupCard place="class" title="Не потеряйте результаты" text="Создайте аккаунт — учитель будет видеть ваши успехи, даже если вы смените телефон или браузер." />
       <h2 className="sec-title">Задания</h2>
       <div className="assign-list">
         {tasks.length === 0 && <p className="muted">Учитель ещё не задал уроков.</p>}

@@ -11,6 +11,7 @@ import { navigate } from '../lib/router';
 import { cx, fmtDate } from '../lib/util';
 import { sfx } from '../audio/engine';
 import { OrnamentBand } from '../ui/Ornament';
+import { SignupCard } from './Signup';
 
 const OFFSETS = [0, 46, 72, 46, 0, -46, -72, -46];
 
@@ -95,6 +96,7 @@ export default function Learn() {
 
   return (
     <div className="learn">
+      {s.xp > 0 && <SignupCard place="learn" compact className="signup-learn" title="Сохраните прогресс" text="Создайте аккаунт — соревнуйтесь с друзьями, а опыт и серия не потеряются." />}
       {assignment && (
         <div className="assign-banner rise">
           <Icon name="school" size={36} />

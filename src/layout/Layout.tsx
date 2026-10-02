@@ -9,6 +9,7 @@ import { leagueNet, refreshBoardIfOld } from '../net/league';
 import { setState } from '../state/store';
 import { cx, dayKey, addDays, plural, weekStart } from '../lib/util';
 import { OrnamentBand } from '../ui/Ornament';
+import { SignupCard } from '../pages/Signup';
 
 interface NavItem {
   id: string;
@@ -417,6 +418,7 @@ function RightRail() {
   return (
     <aside className="rail">
       <StatBar inRail />
+      <SignupCard place="rail" compact title="Сохраните прогресс" text="Создайте аккаунт, чтобы соревноваться с друзьями и не потерять опыт." />
       <RailGoal />
       {main !== 'league' && <RailLeague />}
       {main !== 'quests' && <RailQuests />}
