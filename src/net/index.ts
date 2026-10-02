@@ -65,6 +65,9 @@ async function connect() {
     retryMs = 15000;
     startSync();
     const { sb, uid } = await api();
+    // почту могли подтвердить ссылкой из письма на другом устройстве — берём свежие данные
+    const fresh = await sb.auth.getUser();
+    if (fresh.data.user) net.set({ email: fresh.data.user.email || null, anonymous: !!fresh.data.user.is_anonymous });
     const prof = check(await sb.from('profiles').select('role').eq('id', uid).maybeSingle()) as { role: string } | null;
     net.set({ moderator: prof?.role === 'moderator' });
     await settleOnline();
