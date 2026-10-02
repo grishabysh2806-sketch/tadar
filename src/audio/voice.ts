@@ -332,18 +332,24 @@ export function speakShor(text: string, opts: { slow?: boolean; force?: boolean 
   return speakTts(text, opts);
 }
 
-function speakTts(text: string, opts: { slow?: boolean }): Promise<void> {
-  const st = getState().settings;
+interface Say {
+  text: string;
+  voice: SpeechSynthesisVoice | null;
+  lang: string;
+}
+
+/**
+ * Надёжный запуск фразы: пауза после прерывания, повтор потерянной фразы,
+ * запасной голос (plain), если нужного языка нет в телефоне.
+ */
+function speakCore(build: (plain: boolean) => Say, rate: number, pitch = 1): Promise<void> {
   if (!ttsSupported()) return Promise.resolve();
   return new Promise((resolve) => {
-    // голоса почти не замедляются ниже ~0,5, поэтому медленно — ещё и по слогам
-    const base = opts.slow ? slowText(text) : text;
-    const rate = opts.slow ? Math.max(0.5, st.rate * 0.7) : st.rate;
     let done = false;
     let started = false;
     let tries = 0;
-    // запасной вариант: голос по умолчанию и чтение по-русски (нужного языка нет в телефоне)
     let plain = false;
+    let length = 0;
     const fin = () => {
       if (!done) {
         done = true;
@@ -353,13 +359,13 @@ function speakTts(text: string, opts: { slow?: boolean }): Promise<void> {
     const go = () => {
       if (done) return;
       tries++;
-      const v = plain ? null : pickVoice();
-      const lang = v?.lang ?? 'ru-RU';
-      const u = new SpeechSynthesisUtterance(speakable(base, lang));
-      if (v) u.voice = v;
-      u.lang = lang;
+      const say = build(plain);
+      length = say.text.length;
+      const u = new SpeechSynthesisUtterance(say.text);
+      if (say.voice) u.voice = say.voice;
+      u.lang = say.lang;
       u.rate = rate;
-      u.pitch = 1;
+      u.pitch = pitch;
       u.onstart = () => {
         started = true;
       };
@@ -388,20 +394,55 @@ function speakTts(text: string, opts: { slow?: boolean }): Promise<void> {
       }, 2500);
     };
     // сразу после cancel() браузеры теряют новую фразу — даём движку мгновение
-    const start = () => {
+    const begin = () => {
       const wait = Math.max(0, cancelledAt + 250 - Date.now());
       if (wait) setTimeout(go, wait);
       else go();
     };
-    void voicesReady().then(start);
-    setTimeout(() => {
+    void voicesReady().then(begin);
+    const guard = () => {
+      // долгие фразы рассказчика: ждём, пока движок ещё говорит
+      if (started && !done && speechSynthesis.speaking) return void setTimeout(guard, 2000);
       if (!started && !done && !issueShown) {
         issueShown = true;
         issueListeners.forEach((l) => l());
       }
       fin();
-    }, Math.max(8000, (base.length * 180) / rate));
+    };
+    setTimeout(guard, Math.max(8000, (Math.max(length, 20) * 180) / rate));
   });
+}
+
+function speakTts(text: string, opts: { slow?: boolean }): Promise<void> {
+  const st = getState().settings;
+  // голоса почти не замедляются ниже ~0,5, поэтому медленно — ещё и по слогам
+  const base = opts.slow ? slowText(text) : text;
+  const rate = opts.slow ? Math.max(0.5, st.rate * 0.7) : st.rate;
+  return speakCore((plain) => {
+    const v = plain ? null : pickVoice();
+    const lang = v?.lang ?? 'ru-RU';
+    return { text: speakable(base, lang), voice: v, lang };
+  }, rate);
+}
+
+/** Русский голос для рассказчика: лучше «Google»/«Milena», иначе любой русский. */
+function ruVoice(): SpeechSynthesisVoice | null {
+  const vs = availableVoices().filter((v) => v.lang.toLowerCase().startsWith('ru'));
+  return vs.find((v) => /google|milena|yuri|premium|enhanced/i.test(v.name)) ?? vs[0] ?? null;
+}
+
+/**
+ * Голос рассказчика эпоса: строка пересказа целиком по-русски,
+ * шорские слова в скобках читаются тем же голосом (без смены голоса посреди фразы).
+ */
+export function narrate(line: string): Promise<void> {
+  if (!ttsSupported()) return Promise.resolve();
+  stopSpeech();
+  const clean = line.replace(/[()]/g, '').replace(/\s+/g, ' ').trim();
+  return speakCore((plain) => {
+    const v = plain ? null : ruVoice();
+    return { text: toRussian(clean), voice: v, lang: v?.lang ?? 'ru-RU' };
+  }, 0.95, 0.95);
 }
 
 /** Русская подсказка голосом (для режима без чтения). */

@@ -55,6 +55,8 @@ export interface State {
     mode: Mode;
     onboarded: boolean;
     music: boolean;
+    /** Голос рассказчика в эпосе. */
+    narration: boolean;
   };
   xp: number;
   xpDays: Record<string, number>;
@@ -104,6 +106,7 @@ export function defaultState(): State {
       mode: 'learner',
       onboarded: false,
       music: true,
+      narration: true,
     },
     xp: 0,
     xpDays: {},

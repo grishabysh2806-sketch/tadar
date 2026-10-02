@@ -13,6 +13,7 @@ export type IconName =
   | 'check'
   | 'close'
   | 'speaker'
+  | 'speaker-off'
   | 'turtle'
   | 'mic'
   | 'play'
@@ -116,6 +117,12 @@ const P: Record<IconName, () => ReactElement> = {
     <>
       <path d="M3.5 9.2h3.6L12 5v14l-4.9-4.2H3.5z" fill="currentColor" strokeLinejoin="round" stroke="currentColor" strokeWidth="1.4" />
       <path d="M15.2 9a4.2 4.2 0 0 1 0 6M17.8 6.2a8 8 0 0 1 0 11.6" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    </>
+  ),
+  'speaker-off': () => (
+    <>
+      <path d="M3.5 9.2h3.6L12 5v14l-4.9-4.2H3.5z" fill="currentColor" strokeLinejoin="round" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M15.6 9.4l5 5.2M20.6 9.4l-5 5.2" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
     </>
   ),
   turtle: () => (

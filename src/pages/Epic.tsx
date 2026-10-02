@@ -9,7 +9,7 @@ import { Mascot, ShorText, SpeakButton } from '../ui/kit';
 import { navigate } from '../lib/router';
 import { cx } from '../lib/util';
 import { KaiSynth, lineDuration } from '../audio/kai';
-import { speakShor, stopSpeech } from '../audio/voice';
+import { narrate, speakShor, stopSpeech, ttsSupported } from '../audio/voice';
 import { setState } from '../state/store';
 
 export function EpicPage() {
@@ -104,6 +104,8 @@ export function EpicPage() {
 
 /* ── Плеер ───────────────────────────────────────────────────── */
 
+const sleep = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
+
 function renderLine(line: string) {
   const parts = line.split(/(\([^)]+\))/g);
   return parts.map((p, i) => {
@@ -130,7 +132,9 @@ export function EpicPlayer({ id }: { id: string }) {
   const e = epicById(id);
   const unlocked = useStore((s) => !!s.epics[id]);
   const music = useStore((s) => s.settings.music);
+  const narration = useStore((s) => s.settings.narration);
   const synth = useMemo(() => new KaiSynth(), []);
+  const narrToken = useRef(0);
   const [line, setLine] = useState(-1);
   const [playing, setPlaying] = useState(false);
   const [ended, setEnded] = useState(false);
@@ -142,6 +146,7 @@ export function EpicPlayer({ id }: { id: string }) {
 
   useEffect(
     () => () => {
+      narrToken.current++;
       synth.stop(true);
       stopSpeech();
     },
@@ -202,12 +207,21 @@ export function EpicPlayer({ id }: { id: string }) {
   }
   const u = UNITS.find((x) => x.id === e.unitId)!;
 
+  const finish = () => {
+    setPlaying(false);
+    setEnded(true);
+    setLine(e.lines.length);
+  };
+
+  const stopAll = () => {
+    narrToken.current++;
+    stopSpeech();
+    synth.stop();
+    setPlaying(false);
+  };
+
   const play = () => {
-    if (playing) {
-      synth.stop();
-      setPlaying(false);
-      return;
-    }
+    if (playing) return stopAll();
     setEnded(false);
     setLine(-1);
     setPlaying(true);
@@ -215,17 +229,36 @@ export function EpicPlayer({ id }: { id: string }) {
       counted.current = true;
       markEpicPlayed(e.id);
     }
-    synth.start(
-      e.mood,
-      durations,
-      (i) => setLine(i),
-      () => {
-        setPlaying(false);
-        setEnded(true);
-        setLine(e.lines.length);
-      },
-      { music },
-    );
+    if (!narration || !ttsSupported()) {
+      synth.start(e.mood, durations, (i) => setLine(i), finish, { music });
+      return;
+    }
+    // голос рассказчика ведёт строки; музыка тише и с запасом по длине — в конце плавно затихает
+    const est = e.lines.map((l) => Math.max(lineDuration(l), 1.5 + l.length / 9));
+    synth.start(e.mood, est, () => undefined, () => undefined, { music, duck: true });
+    const token = ++narrToken.current;
+    const alive = () => token === narrToken.current;
+    void (async () => {
+      await sleep(2600);
+      for (let i = 0; i < e.lines.length; i++) {
+        if (!alive()) return;
+        setLine(i);
+        await narrate(e.lines[i]);
+        if (!alive()) return;
+        await sleep(350);
+      }
+      if (!alive()) return;
+      synth.fadeOut(2.5);
+      window.setTimeout(() => alive() && finish(), 2600);
+    })();
+  };
+
+  const toggleNarration = () => {
+    // смена режима посреди сказания — начнём заново
+    if (playing) stopAll();
+    setState((d) => {
+      d.settings.narration = !d.settings.narration;
+    });
   };
 
   const toggleMusic = () => {
@@ -268,9 +301,14 @@ export function EpicPlayer({ id }: { id: string }) {
           <Icon name="arrow-left" size={26} />
         </button>
         <span className="ep-tag">Эпос кай · Раздел {u.n}</span>
-        <button className="icon-btn light" onClick={toggleMusic} aria-label={music ? 'Выключить музыку' : 'Включить музыку'} title="Музыкальное сопровождение">
-          <Icon name={music ? 'music' : 'music-off'} size={24} />
-        </button>
+        <span className="ep-toggles">
+          <button className="icon-btn light" onClick={toggleNarration} aria-label={narration ? 'Выключить голос рассказчика' : 'Включить голос рассказчика'} title="Голос рассказчика">
+            <Icon name={narration ? 'speaker' : 'speaker-off'} size={24} />
+          </button>
+          <button className="icon-btn light" onClick={toggleMusic} aria-label={music ? 'Выключить музыку' : 'Включить музыку'} title="Музыкальное сопровождение">
+            <Icon name={music ? 'music' : 'music-off'} size={24} />
+          </button>
+        </span>
       </div>
 
       <div className="ep-main">
@@ -298,7 +336,7 @@ export function EpicPlayer({ id }: { id: string }) {
           <button className="ep-play" onClick={play} aria-label={playing ? 'Пауза' : 'Слушать'}>
             <Icon name={playing ? 'stop' : 'play'} size={34} />
           </button>
-          <span className="ep-hint">{playing ? 'Звучит кай…' : ended ? 'Слушать ещё раз' : 'Слушать'}</span>
+          <span className="ep-hint">{playing ? (narration ? 'Рассказывает кайчи…' : 'Звучит кай…') : ended ? 'Слушать ещё раз' : 'Слушать'}</span>
         </div>
         <div className="ep-words">
           <h3>Слова из сказания</h3>
@@ -312,7 +350,7 @@ export function EpicPlayer({ id }: { id: string }) {
             ))}
           </div>
         </div>
-        <p className="ep-note">Музыка — синтез в браузере (горловой гул, комус, варган). Пересказ сюжета — для приложения, не перевод текста.</p>
+        <p className="ep-note">Музыка — синтез в браузере (горловой гул, комус, варган), пересказ читает синтезированный голос. Пересказ сюжета — для приложения, не перевод текста.</p>
       </div>
     </div>
   );

@@ -2586,3 +2586,8 @@ button.ph-avatar:focus-visible {
 .signup-screen p {
   max-width: 460px;
 }
+
+.ep-toggles {
+  display: flex;
+  gap: 4px;
+}

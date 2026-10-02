@@ -82,6 +82,8 @@ export class KaiSynth {
   private plucks = new Map<number, AudioBuffer>();
   playing = false;
   startedAt = 0;
+  /** Громкость музыки: тише, когда звучит голос рассказчика. */
+  private level = 0.9;
 
   constructor() {
     this.c = audioCtx();
@@ -114,7 +116,7 @@ export class KaiSynth {
   }
 
   /** Запуск. onLine(i) вызывается в момент начала i-й строки текста. */
-  start(mood: KaiMood, lineDurations: number[], onLine: (i: number) => void, onEnd: () => void, opts: { music: boolean } = { music: true }) {
+  start(mood: KaiMood, lineDurations: number[], onLine: (i: number) => void, onEnd: () => void, opts: { music: boolean; duck?: boolean } = { music: true }) {
     const c = this.c;
     if (!c || !this.master) {
       // без звука — просто ведём текст по таймеру
@@ -136,10 +138,12 @@ export class KaiSynth {
     const total = intro + lineDurations.reduce((a, b) => a + b, 0) + 3.5;
     const end = t0 + total;
 
+    this.level = opts.duck ? 0.42 : 0.9;
+    const lv = opts.music ? this.level : 0;
     this.master.gain.cancelScheduledValues(t0);
     this.master.gain.setValueAtTime(0, t0);
-    this.master.gain.linearRampToValueAtTime(opts.music ? 0.9 : 0, t0 + 1.5);
-    this.master.gain.setValueAtTime(opts.music ? 0.9 : 0, end - 3);
+    this.master.gain.linearRampToValueAtTime(lv, t0 + 1.5);
+    this.master.gain.setValueAtTime(lv, end - 3);
     this.master.gain.linearRampToValueAtTime(0, end);
 
     const reverb = c.createConvolver();
@@ -374,7 +378,23 @@ export class KaiSynth {
     if (!this.c || !this.master) return;
     const t = this.c.currentTime;
     this.master.gain.cancelScheduledValues(t);
-    this.master.gain.setTargetAtTime(on ? 0.9 : 0, t, 0.2);
+    this.master.gain.setTargetAtTime(on ? this.level : 0, t, 0.2);
+  }
+
+  /** Плавно закончить (голос рассказчика дочитал раньше, чем кончилась музыка). */
+  fadeOut(seconds = 2.5) {
+    this.timers.forEach((t) => window.clearTimeout(t));
+    this.timers = [];
+    if (this.c && this.master) {
+      const t = this.c.currentTime;
+      this.master.gain.cancelScheduledValues(t);
+      this.master.gain.setValueAtTime(this.master.gain.value, t);
+      this.master.gain.linearRampToValueAtTime(0, t + seconds);
+    }
+    const fns = this.stopFns;
+    this.stopFns = [];
+    window.setTimeout(() => fns.forEach((f) => f()), seconds * 1000 + 100);
+    this.playing = false;
   }
 
   stop(silent = false) {

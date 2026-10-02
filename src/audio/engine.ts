@@ -17,6 +17,13 @@ export function audioCtx(): AudioContext | null {
 
 /** Разблокировка звука на мобильных: вызывается по первому касанию. */
 export function unlockAudio() {
+  // иначе iPhone глушит музыку кая переключателем «Без звука»
+  const nav = navigator as Navigator & { audioSession?: { type: string } };
+  try {
+    if (nav.audioSession) nav.audioSession.type = 'playback';
+  } catch {
+    /* noop */
+  }
   const c = audioCtx();
   if (c && c.state === 'suspended') c.resume().catch(() => undefined);
 }
