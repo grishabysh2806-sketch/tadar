@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { storage, dayKey, daysBetween } from '../lib/util';
+import { AVATAR_COUNT } from '../ui/avatars';
 
 export type Mode = 'learner' | 'class' | 'traveler';
 export type Theme = 'system' | 'light' | 'dark';
@@ -90,7 +91,7 @@ export function defaultState(): State {
   return {
     v: 1,
     updatedAt: 0,
-    profile: { name: '', since: Date.now(), avatar: Math.floor(Math.random() * 6) },
+    profile: { name: '', since: Date.now(), avatar: Math.floor(Math.random() * AVATAR_COUNT) },
     settings: {
       sfx: true,
       tts: true,

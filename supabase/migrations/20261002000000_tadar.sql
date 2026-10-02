@@ -11,7 +11,7 @@
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   name text not null default '' check (char_length(name) <= 24),
-  avatar smallint not null default 0 check (avatar between 0 and 5),
+  avatar smallint not null default 0 check (avatar between 0 and 31),
   role text not null default 'user' check (role in ('user', 'moderator')),
   xp_total integer not null default 0 check (xp_total >= 0),
   streak integer not null default 0 check (streak >= 0),
@@ -22,6 +22,10 @@ create table if not exists public.profiles (
 );
 
 alter table public.profiles enable row level security;
+
+-- Аватарок стало больше: маскот Пӧрӱ в образах и символы Шории (запас до 32)
+alter table public.profiles drop constraint if exists profiles_avatar_check;
+alter table public.profiles add constraint profiles_avatar_check check (avatar between 0 and 31);
 
 drop policy if exists "profiles: читают все вошедшие" on public.profiles;
 create policy "profiles: читают все вошедшие" on public.profiles

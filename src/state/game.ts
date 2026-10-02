@@ -4,6 +4,7 @@ import { ALL_ITEMS } from '../data/vocab';
 import type { Unit, Lesson } from '../data/types';
 import { getState, setState, heartsNow, MAX_HEARTS, HEART_MS, type State } from './store';
 import { dayKey, addDays, daysBetween, rng, shuffle, weekStart, hashStr, DAY } from '../lib/util';
+import { AVATAR_COUNT } from '../ui/avatars';
 
 /* ── Путь ─────────────────────────────────────────────────────── */
 
@@ -542,7 +543,7 @@ export function leagueBoard(s: State, week = weekStart(), tier = s.league.tier, 
     const total = Math.round((20 + r() * r() * 520) * mult);
     const k = 0.55 + r() * 1.2;
     const xp = Math.round((total * Math.pow(p, k)) / 5) * 5;
-    return { name, xp, avatar: (hashStr(name) + i) % 6 };
+    return { name, xp, avatar: (hashStr(name) + i) % AVATAR_COUNT };
   });
   rows.push({ name: s.profile.name || 'Вы', xp: weekXp(s, week), me: true, avatar: s.profile.avatar });
   return rows.sort((a, b) => b.xp - a.xp || (a.me ? -1 : 1));

@@ -11,6 +11,7 @@ import { useServer } from '../net/client';
 import { QR, ClassPitch, NewTaskModal, joinUrl as makeJoinUrl, toCsv, copyTable, saveTable } from './ClassParts';
 import { TeacherOnline, StudentOnline } from './ClassOnline';
 import { Pic } from '../ui/Pic';
+import { AVATAR_COUNT } from '../ui/avatars';
 
 const CODE_CHARS = 'АБВГДЕКМНПРСТ23456789';
 function makeCode() {
@@ -44,7 +45,7 @@ function demoStudents(cls: ClassRoom): Student[] {
     });
     return {
       name,
-      avatar: i % 6,
+      avatar: (i * 5) % AVATAR_COUNT,
       xp: Math.round((diligence * 160 + r() * 60) / 5) * 5,
       lessons: Math.round(diligence * 18 + r() * 4),
       streak: Math.round(diligence * 9 * r()),

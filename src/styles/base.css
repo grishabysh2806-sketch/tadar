@@ -781,3 +781,14 @@ textarea.input {
 .in-frame .topbar {
   top: env(safe-area-inset-top, 0px);
 }
+
+/* Рисованный аватар */
+.avatar.art {
+  overflow: hidden;
+  background: none;
+}
+.avatar.art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

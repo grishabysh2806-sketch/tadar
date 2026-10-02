@@ -3,7 +3,8 @@ import { useStore, setState, streakNow } from '../state/store';
 import { LEAGUES, ACHIEVEMENTS, learnedCount, lessonsDone } from '../state/game';
 import { TOTAL_LESSONS } from '../data/course';
 import { Icon } from '../ui/Icon';
-import { Avatar, Mascot } from '../ui/kit';
+import { Avatar, Mascot, Modal, ShorText } from '../ui/kit';
+import { AVATARS } from '../ui/avatars';
 import { navigate } from '../lib/router';
 import { cx, dayKey, fmtMonthYear, monthName, plural } from '../lib/util';
 import { OrnamentRing } from '../ui/Ornament';
@@ -56,6 +57,7 @@ function Calendar() {
 export default function Profile() {
   const s = useStore((x) => x);
   const [edit, setEdit] = useState(false);
+  const [pick, setPick] = useState(false);
   const [name, setName] = useState(s.profile.name);
   const lg = LEAGUES[s.league.tier];
   const streak = streakNow(s);
@@ -64,10 +66,13 @@ export default function Profile() {
   return (
     <div className="page profile">
       <section className="profile-hero">
-        <div className="ph-avatar">
+        <button className="ph-avatar" onClick={() => setPick(true)} aria-label="Сменить аватар" title="Сменить аватар">
           <OrnamentRing size={152} className="ph-ring" color="var(--blue)" />
           <Avatar name={s.profile.name || 'Т'} idx={s.profile.avatar} size={104} />
-        </div>
+          <span className="ph-avatar-edit">
+            <Icon name="edit" size={16} />
+          </span>
+        </button>
         <div className="ph-info">
           {edit ? (
             <div className="row">
@@ -96,8 +101,8 @@ export default function Profile() {
             Учит шорский с {fmtMonthYear(s.profile.since)} · режим «{modeName}»
           </p>
           <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-            <button className="btn sm ghost" onClick={() => setState((d) => void (d.profile.avatar = (d.profile.avatar + 1) % 6))}>
-              Сменить цвет
+            <button className="btn sm ghost" onClick={() => setPick(true)}>
+              Сменить аватар
             </button>
             <button className="btn sm ghost" onClick={() => navigate('settings')}>
               <Icon name="settings" size={18} /> Настройки
@@ -176,6 +181,31 @@ export default function Profile() {
           </div>
         ))}
       </div>
+
+      <Modal open={pick} onClose={() => setPick(false)} wide>
+        <h2>Аватар</h2>
+        <p className="muted" style={{ marginBottom: 14 }}>
+          Пӧрӱ в разных образах и символы Горной Шории
+        </p>
+        <div className="avatar-grid">
+          {AVATARS.map((a, i) => (
+            <button
+              key={i}
+              className={cx('avatar-opt', ((s.profile.avatar % AVATARS.length) + AVATARS.length) % AVATARS.length === i && 'on')}
+              onClick={() => {
+                setState((d) => void (d.profile.avatar = i));
+                setPick(false);
+              }}
+            >
+              <Avatar name={a.shor} idx={i} size={60} />
+              <b>
+                <ShorText text={a.shor} />
+              </b>
+              <small>{a.ru}</small>
+            </button>
+          ))}
+        </div>
+      </Modal>
 
       <div className="profile-foot card flat">
         <Mascot pose="head" size={64} />

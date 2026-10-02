@@ -8,7 +8,7 @@
 type S = string;
 
 /* ── Палитра ──────────────────────────────────────────────────────── */
-const K = {
+export const K = {
   navy: '#0B2340',
   blue: '#139FE0',
   blueD: '#0B7FB8',
@@ -52,15 +52,15 @@ const K = {
 };
 
 /* ── Примитивы ────────────────────────────────────────────────────── */
-const p = (d: S, f: S, x = '') => `<path d="${d}" fill="${f}"${x}/>`;
-const c = (cx: number, cy: number, r: number, f: S, x = '') => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${f}"${x}/>`;
-const e = (cx: number, cy: number, rx: number, ry: number, f: S, x = '') => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${f}"${x}/>`;
-const r = (x: number, y: number, w: number, h: number, rx: number, f: S, a = '') => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${f}"${a}/>`;
-const l = (d: S, s: S, w = 2.4, x = '') => `<path d="${d}" fill="none" stroke="${s}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"${x}/>`;
+export const p = (d: S, f: S, x = '') => `<path d="${d}" fill="${f}"${x}/>`;
+export const c = (cx: number, cy: number, r: number, f: S, x = '') => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${f}"${x}/>`;
+export const e = (cx: number, cy: number, rx: number, ry: number, f: S, x = '') => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${f}"${x}/>`;
+export const r = (x: number, y: number, w: number, h: number, rx: number, f: S, a = '') => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${f}"${a}/>`;
+export const l = (d: S, s: S, w = 2.4, x = '') => `<path d="${d}" fill="none" stroke="${s}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"${x}/>`;
 /** Белый блик. */
-const hl = (d: S, w = 2.2) => l(d, '#fff', w, ' stroke-opacity=".6"');
-const g = (t: S, inner: S) => `<g transform="${t}">${inner}</g>`;
-const op = (o: number) => ` opacity="${o}"`;
+export const hl = (d: S, w = 2.2) => l(d, '#fff', w, ' stroke-opacity=".6"');
+export const g = (t: S, inner: S) => `<g transform="${t}">${inner}</g>`;
+export const op = (o: number) => ` opacity="${o}"`;
 
 /* ── Люди ─────────────────────────────────────────────────────────── */
 
@@ -127,7 +127,7 @@ function palm(skin: S = K.skin, shade: S = K.skinD) {
 /* ── Природа: заготовки ───────────────────────────────────────────── */
 
 /** Ель (вершина в 24;4, основание 34) — тайга, тайга у озера. */
-const fir = (dark = K.pineD, light = K.pine) =>
+export const fir = (dark = K.pineD, light = K.pine) =>
   r(22, 33, 4, 7, 1.2, K.brown) +
   p('M24 4l8.4 11.4h-3.6l6.6 9h-3.8L38 34H10l6.4-9.6h-3.8l6.6-9h-3.6z', light) +
   p('M24 4l8.4 11.4h-3.6l6.6 9h-3.8L38 34H24z', dark, op(0.55));
@@ -147,10 +147,10 @@ const cloudShape = (f: S, grow = 0) => c(15.6, 27.4, 7.2 + grow, f) + c(24.4, 21
 const cloud = (f: S = K.white, shade: S = K.gray, line: S = K.grayD) => cloudShape(line, 1.3) + cloudShape(f) + r(10.6, 31, 27, 4.2, 2.1, shade) + hl('M17.6 21.4q1.8-3.6 5.8-4.4', 2);
 
 /** Звёздочка-искра (центр 0;0). */
-const spark = (rr: number, f: S) => p(`M0 ${-rr}C${rr * 0.18} ${-rr * 0.3} ${rr * 0.3} ${-rr * 0.18} ${rr} 0C${rr * 0.3} ${rr * 0.18} ${rr * 0.18} ${rr * 0.3} 0 ${rr}C${-rr * 0.18} ${rr * 0.3} ${-rr * 0.3} ${rr * 0.18} ${-rr} 0C${-rr * 0.3} ${-rr * 0.18} ${-rr * 0.18} ${-rr * 0.3} 0 ${-rr}z`, f);
+export const spark = (rr: number, f: S) => p(`M0 ${-rr}C${rr * 0.18} ${-rr * 0.3} ${rr * 0.3} ${-rr * 0.18} ${rr} 0C${rr * 0.3} ${rr * 0.18} ${rr * 0.18} ${rr * 0.3} 0 ${rr}C${-rr * 0.18} ${rr * 0.3} ${-rr * 0.3} ${rr * 0.18} ${-rr} 0C${-rr * 0.3} ${-rr * 0.18} ${-rr * 0.18} ${-rr * 0.3} 0 ${-rr}z`, f);
 
 /** Пятиконечная звезда (центр 0;0). */
-const star5 = (rr: number, f: S) => {
+export const star5 = (rr: number, f: S) => {
   const pts = Array.from({ length: 10 }, (_, i) => {
     const a = -Math.PI / 2 + (i * Math.PI) / 5;
     const q = i % 2 ? rr * 0.48 : rr;

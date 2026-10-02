@@ -5,6 +5,7 @@ import { splitSpecial } from '../lib/text';
 import { speakShor } from '../audio/voice';
 import { cx } from '../lib/util';
 import { Pic } from './Pic';
+import { avatarAt } from './avatars';
 
 /* ── Маскот ─────────────────────────────────────────────────── */
 
@@ -270,12 +271,12 @@ export function Confetti({ run = true, colors = ['#139FE0', '#38B868', '#F8B818'
 
 /* ── Аватар ─────────────────────────────────────────────────── */
 
-const AV_COLORS = ['#139FE0', '#38B868', '#8B5CF6', '#EF6461', '#F29F05', '#0A3A6E'];
+/** Аватар: Пӧрӱ в одном из образов или символ Шории (номер хранится в профиле). */
 export function Avatar({ name, idx = 0, size = 40 }: { name: string; idx?: number; size?: number }) {
-  const letter = (name || 'Т').trim()[0] ?? 'Т';
+  const a = avatarAt(idx);
   return (
-    <span className="avatar" style={{ width: size, height: size, background: AV_COLORS[idx % AV_COLORS.length], fontSize: size * 0.44 }}>
-      {letter}
+    <span className="avatar art" style={{ width: size, height: size }} role="img" aria-label={name ? `${name}: ${a.shor}` : a.shor}>
+      <svg viewBox="0 0 48 48" focusable="false" dangerouslySetInnerHTML={{ __html: a.svg }} />
     </span>
   );
 }

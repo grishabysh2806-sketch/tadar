@@ -8,6 +8,7 @@ import { getState, replaceState, fromSaved, subscribe, streakNow, type State } f
 import { lessonsDone, weekXp } from '../state/game';
 import { addDays, dayKey, weekStart } from '../lib/util';
 import { api, check, net } from './client';
+import { AVATAR_COUNT } from '../ui/avatars';
 import { ensureRoom, patchMyXp } from './league';
 
 let lastProgress = '';
@@ -61,7 +62,7 @@ async function pushProfile() {
   const s = getState();
   const p = {
     name: s.profile.name.trim().slice(0, 24),
-    avatar: ((s.profile.avatar % 6) + 6) % 6,
+    avatar: ((s.profile.avatar % AVATAR_COUNT) + AVATAR_COUNT) % AVATAR_COUNT,
     xp_total: Math.max(0, s.xp),
     streak: streakNow(s),
     lessons_done: lessonsDone(s),
