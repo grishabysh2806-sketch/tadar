@@ -93,7 +93,7 @@ export default function Settings() {
                   </option>
                 ))}
               </select>
-              <div className="row" style={{ marginTop: 10 }}>
+              <div className="row set-rate" style={{ marginTop: 10 }}>
                 <span className="grow muted" style={{ fontWeight: 700, fontSize: 14 }}>
                   Скорость: {st.rate.toFixed(2)}
                 </span>

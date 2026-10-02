@@ -409,9 +409,13 @@
 /* Заголовок страницы */
 .page-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 14px;
   margin: 6px 0 20px;
+}
+.page-head > .grow {
+  min-width: 0;
 }
 .page-head h1 {
   font-size: 28px;

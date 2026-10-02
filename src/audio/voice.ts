@@ -222,24 +222,51 @@ export function stopSpeech() {
     current.pause();
     current = null;
   }
-  if (ttsSupported()) {
-    if (speechSynthesis.speaking || speechSynthesis.pending) cancelledAt = Date.now();
+  // отменяем только то, что звучит: лишний cancel() на Android и в Chrome глотает следующую фразу
+  if (ttsSupported() && (speechSynthesis.speaking || speechSynthesis.pending)) {
     speechSynthesis.cancel();
+    cancelledAt = Date.now();
   }
 }
 
-/** iOS разрешает синтез речи только после касания — «будим» его пустой фразой. */
+const IOS = typeof navigator !== 'undefined' && (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+
+/** iOS разрешает синтез речи только после касания — «будим» его пустой фразой (только iOS: на Android она может застрять в очереди). */
 let speechUnlocked = false;
 export function unlockSpeech() {
-  if (speechUnlocked || !ttsSupported()) return;
+  if (speechUnlocked || !ttsSupported() || !IOS) return;
   speechUnlocked = true;
   try {
-    const u = new SpeechSynthesisUtterance(' ');
+    const u = new SpeechSynthesisUtterance('');
     u.volume = 0;
     speechSynthesis.speak(u);
   } catch {
     /* noop */
   }
+}
+
+/** Синтез так и не заговорил — подсказать человеку один раз за сеанс. */
+const issueListeners = new Set<() => void>();
+let issueShown = false;
+export const onSpeechIssue = (l: () => void) => {
+  issueListeners.add(l);
+  return () => {
+    issueListeners.delete(l);
+  };
+};
+
+/** На Android голоса загружаются не сразу — ждём их немного перед первой фразой. */
+function voicesReady(ms = 1200): Promise<void> {
+  if (!ttsSupported() || speechSynthesis.getVoices().length) return Promise.resolve();
+  return new Promise((resolve) => {
+    const t = setTimeout(done, ms);
+    function done() {
+      clearTimeout(t);
+      speechSynthesis.removeEventListener?.('voiceschanged', done);
+      resolve();
+    }
+    speechSynthesis.addEventListener?.('voiceschanged', done);
+  });
 }
 
 /* ── Медленно: по слогам, как произносит учитель ───────────────── */
@@ -309,15 +336,14 @@ function speakTts(text: string, opts: { slow?: boolean }): Promise<void> {
   const st = getState().settings;
   if (!ttsSupported()) return Promise.resolve();
   return new Promise((resolve) => {
-    const v = pickVoice();
-    const lang = v?.lang ?? 'ru-RU';
     // голоса почти не замедляются ниже ~0,5, поэтому медленно — ещё и по слогам
-    const say = speakable(opts.slow ? slowText(text) : text, lang);
+    const base = opts.slow ? slowText(text) : text;
     const rate = opts.slow ? Math.max(0.5, st.rate * 0.7) : st.rate;
     let done = false;
     let started = false;
     let tries = 0;
-    let retrying = false;
+    // запасной вариант: голос по умолчанию и чтение по-русски (нужного языка нет в телефоне)
+    let plain = false;
     const fin = () => {
       if (!done) {
         done = true;
@@ -327,8 +353,9 @@ function speakTts(text: string, opts: { slow?: boolean }): Promise<void> {
     const go = () => {
       if (done) return;
       tries++;
-      retrying = false;
-      const u = new SpeechSynthesisUtterance(say);
+      const v = plain ? null : pickVoice();
+      const lang = v?.lang ?? 'ru-RU';
+      const u = new SpeechSynthesisUtterance(speakable(base, lang));
       if (v) u.voice = v;
       u.lang = lang;
       u.rate = rate;
@@ -337,30 +364,43 @@ function speakTts(text: string, opts: { slow?: boolean }): Promise<void> {
         started = true;
       };
       u.onend = fin;
-      u.onerror = () => {
-        if (!retrying) fin();
+      u.onerror = (ev) => {
+        const err = (ev as SpeechSynthesisErrorEvent).error;
+        if (!started && tries < 2 && err !== 'interrupted' && err !== 'canceled' && err !== 'not-allowed') {
+          plain = true;
+          setTimeout(go, 150);
+        } else fin();
       };
       try {
-        speechSynthesis.resume();
+        if (speechSynthesis.paused) speechSynthesis.resume();
         speechSynthesis.speak(u);
       } catch {
         fin();
         return;
       }
-      // движок молчит (бывает в Chrome после прерывания и на iOS) — пробуем ещё раз
+      // фразу потеряли: движок свободен, а она так и не началась — повторяем один раз (без cancel)
       setTimeout(() => {
-        if (done || started) return;
-        if (tries >= 2) return fin();
-        retrying = true;
-        speechSynthesis.cancel();
-        setTimeout(go, 150);
-      }, 1500);
+        if (done || started || tries >= 2) return;
+        if (!speechSynthesis.speaking && !speechSynthesis.pending) {
+          plain = true;
+          go();
+        }
+      }, 2500);
     };
     // сразу после cancel() браузеры теряют новую фразу — даём движку мгновение
-    const wait = Math.max(0, cancelledAt + 180 - Date.now());
-    if (wait) setTimeout(go, wait);
-    else go();
-    setTimeout(fin, Math.max(7000, (say.length * 160) / rate));
+    const start = () => {
+      const wait = Math.max(0, cancelledAt + 250 - Date.now());
+      if (wait) setTimeout(go, wait);
+      else go();
+    };
+    void voicesReady().then(start);
+    setTimeout(() => {
+      if (!started && !done && !issueShown) {
+        issueShown = true;
+        issueListeners.forEach((l) => l());
+      }
+      fin();
+    }, Math.max(8000, (base.length * 180) / rate));
   });
 }
 

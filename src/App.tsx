@@ -4,6 +4,7 @@ import { useStore, setState } from './state/store';
 import { settleLeague, ensureQuests } from './state/game';
 import { Layout } from './layout/Layout';
 import { serverOn } from './net/client';
+import { onSpeechIssue } from './audio/voice';
 import { Toasts, toast } from './ui/kit';
 import Learn from './pages/Learn';
 import LessonPage from './pages/Lesson';
@@ -69,6 +70,18 @@ export default function App() {
   useEffect(() => {
     window.scrollTo({ top: 0 });
   }, [path]);
+
+  useEffect(
+    () =>
+      onSpeechIssue(() =>
+        toast('Не слышно слов?', {
+          icon: '🔇',
+          sub: 'Проверьте громкость. На Android нужен синтез речи Google: Настройки → Спец. возможности → Синтез речи. Аудиозадания можно пропустить кнопкой «Не могу слушать».',
+          ms: 9000,
+        }),
+      ),
+    [],
+  );
 
   useEffect(() => {
     // ссылка из письма устарела или уже использована — Supabase вернул ошибку в адресе

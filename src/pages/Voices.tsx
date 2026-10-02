@@ -165,8 +165,8 @@ export default function Voices() {
               <div className="grow">
                 <ShorText text={it.shor} />
                 <small>{ruShow(it)}</small>
+                {own ? <span className="pill green wl-pill">✓ ваш голос</span> : shared && <span className="pill blue wl-pill">голос из словаря</span>}
               </div>
-              {own ? <span className="pill green">✓ ваш голос</span> : shared && <span className="pill blue">голос из словаря</span>}
               <button className={cx('btn sm', own || shared ? 'ghost' : '')} onClick={() => setTarget(it)}>
                 <Icon name="mic" size={18} /> {own || shared ? 'Ещё' : 'Записать'}
               </button>
