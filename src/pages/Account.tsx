@@ -1,5 +1,5 @@
 /* Аккаунт на сервере: гостевой вход, привязка почты, вход на другом устройстве. */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../ui/Icon';
 import { toast } from '../ui/kit';
 import { navigate } from '../lib/router';
@@ -22,14 +22,34 @@ function authError(e: unknown, mode: Mode, step: 'send' | 'code') {
   return errorText(e);
 }
 
-/** Почта → код из письма. Подходит и для привязки, и для входа. */
+/**
+ * Почта → письмо со ссылкой. Ссылка из письма подтверждает почту (или входит)
+ * сама; код нужен, только если в шаблоне письма Supabase есть {{ .Token }}
+ * (шаблоны правятся лишь со своим SMTP).
+ */
 export function EmailFlow({ mode, onDone, onCancel }: { mode: Mode; onDone?: () => void; onCancel?: () => void }) {
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [code, setCode] = useState('');
+  const [codeOpen, setCodeOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const n = net.use();
+  const finished = useRef(false);
+
+  const success = () => {
+    if (finished.current) return;
+    finished.current = true;
+    toast(mode === 'link' ? 'Почта привязана' : 'Вы вошли', { icon: '✅', sub: mode === 'link' ? 'Теперь прогресс можно продолжить на любом устройстве' : 'Загружаем ваш прогресс' });
+    onDone?.();
+  };
+
+  // ссылку из письма открыли в другой вкладке этого браузера — вход приходит сюда сам
+  useEffect(() => {
+    if (sent && !n.anonymous && (n.email ?? '').toLowerCase() === email.trim().toLowerCase()) success();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sent, n.email, n.anonymous]);
 
   const send = async () => {
     if (!valid || busy) return;
@@ -52,8 +72,7 @@ export function EmailFlow({ mode, onDone, onCancel }: { mode: Mode; onDone?: () 
     try {
       if (mode === 'link') await confirmLinkEmail(email, code);
       else await confirmLogin(email, code);
-      toast(mode === 'link' ? 'Почта привязана' : 'Вы вошли', { icon: '✅', sub: mode === 'link' ? 'Теперь прогресс можно продолжить на любом устройстве' : 'Загружаем ваш прогресс' });
-      onDone?.();
+      success();
     } catch (e) {
       setError(authError(e, mode, 'code'));
     } finally {
@@ -85,33 +104,42 @@ export function EmailFlow({ mode, onDone, onCancel }: { mode: Mode; onDone?: () 
               </button>
             )}
             <button className="btn grow" disabled={!valid || busy} onClick={send}>
-              {busy ? 'Отправляем…' : 'Получить код'}
+              {busy ? 'Отправляем…' : 'Отправить письмо'}
             </button>
           </div>
         </>
       ) : (
         <>
-          <p className="muted">
-            Письмо ушло на <b>{email.trim()}</b>. Введите код из письма — или просто откройте ссылку из письма на этом устройстве.
+          <p className="email-sent">
+            <Icon name="check" size={20} /> Письмо ушло на <b>{email.trim()}</b>
           </p>
-          <input
-            className="input code-input"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            placeholder="Код из письма"
-            maxLength={10}
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-            onKeyDown={(e) => e.key === 'Enter' && confirm()}
-          />
-          <div className="row">
-            <button className="btn ghost grow" disabled={busy} onClick={() => (setSent(false), setCode(''))}>
-              Другая почта
+          <p className="muted">
+            Откройте ссылку из письма <b>на этом устройстве</b> — {mode === 'link' ? 'почта привяжется' : 'вы войдёте'} автоматически. Письмо может идти пару минут; загляните и в «Спам».
+          </p>
+          {codeOpen ? (
+            <>
+              <input
+                className="input code-input"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="Код из письма"
+                maxLength={10}
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                onKeyDown={(e) => e.key === 'Enter' && confirm()}
+              />
+              <button className="btn green" disabled={code.length < 6 || busy} onClick={confirm}>
+                {busy ? 'Проверяем…' : 'Подтвердить'}
+              </button>
+            </>
+          ) : (
+            <button className="btn text sm" onClick={() => setCodeOpen(true)}>
+              В письме есть код
             </button>
-            <button className="btn green grow" disabled={code.length < 6 || busy} onClick={confirm}>
-              {busy ? 'Проверяем…' : 'Подтвердить'}
-            </button>
-          </div>
+          )}
+          <button className="btn ghost" disabled={busy} onClick={() => (setSent(false), setCode(''), setCodeOpen(false))}>
+            Другая почта
+          </button>
         </>
       )}
       {error && <p className="rec-err">{error}</p>}

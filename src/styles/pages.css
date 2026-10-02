@@ -2337,3 +2337,17 @@
 .ach.locked .ach-icon svg {
   opacity: 0.8;
 }
+.email-sent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  color: var(--green-dd);
+}
+:root[data-theme='dark'] .email-sent {
+  color: #7fe0a6;
+}
+.email-sent b {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

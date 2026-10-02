@@ -95,7 +95,7 @@ export default function Onboarding() {
         <Modal open={login} onClose={() => setLogin(false)}>
           <h2>Вход по почте</h2>
           <p className="muted" style={{ marginBottom: 14 }}>
-            Если вы привязали почту на другом устройстве, введите её — пришлём код, и прогресс вернётся сюда.
+            Если вы привязали почту на другом устройстве, введите её — пришлём письмо со ссылкой для входа, и прогресс вернётся сюда.
           </p>
           <EmailFlow mode="login" onDone={() => setLogin(false)} onCancel={() => setLogin(false)} />
         </Modal>

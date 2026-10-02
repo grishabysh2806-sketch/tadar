@@ -4,7 +4,7 @@ import { useStore, setState } from './state/store';
 import { settleLeague, ensureQuests } from './state/game';
 import { Layout } from './layout/Layout';
 import { serverOn } from './net/client';
-import { Toasts } from './ui/kit';
+import { Toasts, toast } from './ui/kit';
 import Learn from './pages/Learn';
 import LessonPage from './pages/Lesson';
 import { EpicPage, EpicPlayer } from './pages/Epic';
@@ -69,6 +69,14 @@ export default function App() {
   useEffect(() => {
     window.scrollTo({ top: 0 });
   }, [path]);
+
+  useEffect(() => {
+    // ссылка из письма устарела или уже использована — Supabase вернул ошибку в адресе
+    if (/error_description=/.test(window.location.hash)) {
+      toast('Ссылка из письма не сработала', { icon: '⚠️', sub: 'Скорее всего, она устарела или уже открыта. Отправьте письмо ещё раз.' });
+      navigate('learn', true);
+    }
+  }, []);
 
   useEffect(() => {
     // QR-код из режима «Класс»: #/join/КОД
