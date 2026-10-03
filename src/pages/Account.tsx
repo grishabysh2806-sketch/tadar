@@ -4,6 +4,7 @@ import { Icon } from '../ui/Icon';
 import { toast } from '../ui/kit';
 import { navigate } from '../lib/router';
 import { copyText } from '../lib/platform';
+import { plural } from '../lib/util';
 import { net, errorText } from '../net/client';
 import { confirmLinkEmail, confirmLogin, linkEmail, retryNow, sendLoginCode, signOut } from '../net';
 
@@ -18,7 +19,16 @@ function authError(e: unknown, mode: Mode, step: 'send' | 'code') {
     return 'Аккаунт с этой почтой не найден. Сначала привяжите почту в настройках на устройстве, где вы занимались.';
   if (mode === 'link' && (/email_exists|user_already_exists/i.test(code) || /already (been )?registered/i.test(msg))) return 'Эта почта уже привязана к другому аккаунту — войдите в него.';
   if (/email_address_invalid|validation_failed/i.test(code) || /invalid.*email|email.*invalid/i.test(msg)) return 'Проверьте адрес почты.';
-  if (/rate_limit/i.test(code) || /rate limit|too many|seconds/i.test(msg)) return 'Письма можно отправлять не чаще раза в минуту. Подождите немного.';
+  // этому адресу письмо уже ушло только что: Supabase пишет, через сколько секунд можно снова
+  const wait = /after (\d+) seconds?/i.exec(msg);
+  if (wait) {
+    const s = Number(wait[1]);
+    return `Письмо на этот адрес уже отправлено. Новое можно запросить через ${s} ${plural(s, ['секунду', 'секунды', 'секунд'])}.`;
+  }
+  // общий лимит встроенной почты Supabase — несколько писем в час на весь проект
+  if (code === 'over_email_send_rate_limit' || /email rate limit/i.test(msg))
+    return 'Сервер сейчас не может отправить письмо: лимит писем на этот час исчерпан (он общий для всех учеников). Попробуйте ещё раз примерно через час.';
+  if (code === 'over_request_rate_limit' || /rate limit|too many/i.test(msg)) return 'Слишком много попыток с этого устройства. Подождите несколько минут и попробуйте снова.';
   return errorText(e);
 }
 
